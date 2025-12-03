@@ -1,6 +1,6 @@
-﻿# Architecture KB: Pattern Discovery + Dependency Orchestrator
+﻿# Architecture KB: Pattern Discovery Agent
 
-> Automated architectural consistency, pattern discovery, and intelligent dependency management across your GitHub repositories
+> Automated architectural consistency and pattern discovery across your GitHub repositories
 
 ## 🎯 What This Solves
 
@@ -9,16 +9,14 @@ When building multiple projects with AI assistance, you face:
 - **Code duplication**: Reimplementing the same logic multiple times
 - **Lost context**: Forgetting how you solved something last month
 - **Technical debt**: Inconsistency compounds over time
-- **🆕 Dependency blindness**: Changes in one repo breaking others silently
-- **🆕 Manual coordination**: Tedious tracking of interdependent services
 
-This system acts as your **automated institutional memory and dependency coordinator**, watching your commits and:
+This system acts as your **automated institutional memory**, watching your commits and:
 - ✅ Detecting similar patterns in other repos you can reuse
 - ✅ Finding opportunities to extract shared libraries
 - ✅ Catching architectural inconsistencies before they spread
 - ✅ Identifying potential redundancy in real-time
-- ✅ **🆕 Notifying dependent applications when changes require action**
-- ✅ **🆕 Using AI agents to triage impact across your architecture**
+
+**Need dependency coordination?** Check out the companion project: [dependency-orchestrator](https://github.com/patelmm79/dependency-orchestrator) - AI-powered triage agents that notify dependent repos when changes require action.
 
 ## 📦 What's Included
 
@@ -35,39 +33,20 @@ This system acts as your **automated institutional memory and dependency coordin
    - Compares patterns across repositories
    - Updates central knowledge base automatically
    - Sends smart notifications via Discord/Slack webhooks
-   - **🆕 Notifies orchestrator service for dependency triage**
+   - Can notify external orchestrator services (like [dependency-orchestrator](https://github.com/patelmm79/dependency-orchestrator))
 
-3. **🆕 Orchestrator Service** (`orchestrator/`)
-   - FastAPI service deployed on GCP Cloud Run
-   - Receives change notifications from pattern analyzer
-   - Spawns AI triage agents to assess dependency impact
-   - Creates GitHub issues in affected repositories
-   - Handles two relationship types:
-     - **Consumer relationships**: API changes → dependent apps
-     - **Template relationships**: Infrastructure improvements → derived repos
-
-4. **🆕 Triage Agents** (`orchestrator/agents/`)
-   - **ConsumerTriageAgent**: Analyzes API breaking changes
-   - **TemplateTriageAgent**: Identifies sync opportunities
-   - Uses Claude to intelligently assess impact
-   - Provides confidence scores and detailed recommendations
-
-5. **Dashboard** (`pattern_dashboard.html`)
+3. **Dashboard** (`pattern_dashboard.html`)
    - Visualize your architectural landscape
    - Interactive pattern similarity network graph
    - Track redundancy metrics across repos
    - Browse repository details and history
 
-6. **Pre-commit Hook** (`scripts/precommit_checker.py`) [Optional]
+4. **Pre-commit Hook** (`scripts/precommit_checker.py`) [Optional]
    - Check patterns before commit locally
    - Warn about divergence from other repos
    - Interactive approval workflow
 
 ## 🚀 Quick Start
-
-Choose your path:
-- **Pattern Discovery Only**: Follow steps 1-4 below
-- **🆕 With Dependency Orchestrator**: Follow all steps + see [ORCHESTRATOR.md](ORCHESTRATOR.md)
 
 ### 1. Create Knowledge Base Repository
 
@@ -139,11 +118,9 @@ On your next commit, the action will:
 
 **See [SETUP_MONITORING.md](SETUP_MONITORING.md) for detailed instructions and troubleshooting.**
 
-## 📊 Example Workflows
+## 📊 Example Workflow
 
-### Pattern Discovery: Cross-Repo Reuse
-
-#### Day 1: First Repository
+### Day 1: First Repository
 ```bash
 # You build a web scraper with retry logic
 git commit -m "Add scraper with exponential backoff"
@@ -151,59 +128,13 @@ git push
 ```
 **System:** ✅ Patterns recorded: "Retry logic with exponential backoff", "Rate limiting"
 
-#### Day 7: Second Repository
+### Day 7: Second Repository
 ```bash
 # You build an API client
 git commit -m "Add API client"
 git push
 ```
 **System:** 🔔 "Found similar pattern in **web-scraper**: 'Retry logic with exponential backoff'. Consider extracting to shared library?"
-
-### 🆕 Dependency Orchestration: Automated Triage
-
-#### Use Case 1: API Consumer
-```bash
-# You update vllm-container-ngc health check
-cd vllm-container-ngc
-git commit -m "Change health check from /health to /v1/health"
-git push
-```
-
-**System Flow:**
-1. Pattern analyzer extracts changes
-2. Notifies orchestrator service
-3. ConsumerTriageAgent analyzes impact on `resume-customizer`
-4. **Creates issue in resume-customizer**:
-   ```
-   ⚠️ Dependency Update Required: vllm-container-ngc
-   Urgency: HIGH | Confidence: 90%
-
-   The health check endpoint changed. You need to update:
-   - src/llm_client.py line 45
-   - config/llm_config.yaml
-   ```
-
-#### Use Case 2: Template Fork
-```bash
-# You optimize GPU memory in vllm-container-ngc
-cd vllm-container-ngc
-git commit -m "Improve GPU memory allocation in docker-compose"
-git push
-```
-
-**System Flow:**
-1. Pattern analyzer extracts infrastructure improvements
-2. Notifies orchestrator service
-3. TemplateTriageAgent analyzes `vllm-container-coder`
-4. **Creates issue in vllm-container-coder**:
-   ```
-   📋 Template Update Available: vllm-container-ngc
-   Urgency: MEDIUM | Confidence: 85%
-
-   GPU memory optimization added. Consider backporting:
-   - docker-compose.yml lines 23-28
-   - Improves memory efficiency by 15%
-   ```
 
 ### Day 14: Review Patterns
 Open your knowledge base dashboard to see patterns across all repos:
@@ -214,7 +145,6 @@ Open your knowledge base dashboard to see patterns across all repos:
    - Retry logic used in 2 repos: web-scraper, api-client
    - Environment-based configuration in 3 repos
    - Visual similarity network showing connections
-   - **🆕 Dependency relationships and recent triage results**
 
 ## 🎨 Dashboard Usage
 
@@ -357,67 +287,26 @@ Set up a cron job to generate reports:
 0 9 * * 1 cd ~/architecture-kb && python generate_weekly_report.py
 ```
 
-## 🆕 Dependency Orchestrator
-
-The orchestrator service coordinates AI triage agents to assess impact of changes across dependent repositories.
-
-### Key Features
-- **Consumer Relationships**: Detects API breaking changes
-- **Template Relationships**: Identifies infrastructure sync opportunities
-- **AI Triage Agents**: Use Claude to analyze impact intelligently
-- **Automated Issues**: Creates GitHub issues with detailed recommendations
-- **Confidence Scoring**: Provides 0-100% confidence for each assessment
-- **Urgency Levels**: Critical, High, Medium, Low
-
-### Setup
-1. **Deploy orchestrator to GCP Cloud Run**:
-   ```bash
-   export GCP_PROJECT_ID="your-project"
-   export ANTHROPIC_API_KEY="sk-ant-xxx"
-   export GITHUB_TOKEN="ghp_xxx"
-   ./deploy-gcp.sh
-   ```
-
-2. **Configure relationships** in `config/relationships.json`:
-   ```json
-   {
-     "relationships": {
-       "yourname/service-provider": {
-         "consumers": [{
-           "repo": "yourname/consumer-app",
-           "change_triggers": ["api_contract", "authentication"]
-         }]
-       }
-     }
-   }
-   ```
-
-3. **Add ORCHESTRATOR_URL secret** to monitored repos
-
-**See [ORCHESTRATOR.md](ORCHESTRATOR.md) for complete documentation.**
-
 ## 🔮 Roadmap
 
-### ✅ Phase 1: Pattern Discovery & Orchestration (Complete)
+### ✅ Phase 1: Pattern Discovery (Complete)
 - [x] Pattern extraction with Claude
 - [x] Cross-repo similarity detection
 - [x] Knowledge base management
-- [x] Dependency orchestration service
-- [x] Consumer & template triage agents
-- [x] Automated issue creation
+- [x] Reusable GitHub workflow
+- [x] Dashboard visualization
 
 ### Phase 2: Enhanced Intelligence (Next)
 - [ ] Add vector embeddings for better pattern matching
 - [ ] Implement confidence score improvements
 - [ ] Pattern recommendation engine
 - [ ] Weekly digest notifications
-- [ ] Auto-create PRs (not just issues)
+- [ ] Automated refactoring suggestions
 
 ### Phase 3: Scale & Observability (Future)
-- [ ] Orchestrator web dashboard
+- [ ] Enhanced dashboard features
 - [ ] Historical trend analysis
 - [ ] Custom notification templates
-- [ ] Bidirectional template sync detection
 - [ ] Learning from user feedback
 
 ## 🐛 Troubleshooting
@@ -451,12 +340,14 @@ curl -X POST $DISCORD_WEBHOOK_URL -H "Content-Type: application/json" -d '{"cont
 Typical monthly costs for active development:
 
 - **GitHub Actions**: Free (public repos), ~$2-5 (private)
-- **Claude API**: 
+- **Claude API**:
   - Per analysis: $0.01-0.05
   - 50 commits/month: $0.50-2.50
 - **Storage**: Free (JSON in GitHub)
 
-**Total: $3-10/month** for 5-10 active repositories
+**Total: $3-8/month** for 5-10 active repositories
+
+**Need dependency orchestration?** The companion [dependency-orchestrator](https://github.com/patelmm79/dependency-orchestrator) adds ~$3-5/month for AI triage agents.
 
 ## 🤝 Contributing
 

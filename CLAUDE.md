@@ -4,17 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is a Pattern Discovery + Dependency Orchestrator System - an automated architectural consistency, pattern discovery, and intelligent dependency management tool that analyzes code commits across GitHub repositories using Claude AI. The system acts as institutional memory, detecting similar patterns, architectural drift, and opportunities for code reuse across multiple projects. It also coordinates AI triage agents to assess the impact of changes across dependent repositories.
+This is a Pattern Discovery Agent System - an automated architectural consistency and pattern discovery tool that analyzes code commits across GitHub repositories using Claude AI. The system acts as institutional memory, detecting similar patterns, architectural drift, and opportunities for code reuse across multiple projects.
 
 **Key Features**:
 1. **Pattern Discovery**: Detects similar patterns across repositories
-2. **Dependency Orchestration**: AI-powered triage of changes affecting dependent repos
+2. **Knowledge Base Management**: Maintains centralized architectural memory
 3. **Reusable Workflows**: Monitored projects only need a tiny 15-line workflow file
-4. **GCP Cloud Run Deployment**: Scalable, serverless orchestrator service
+4. **Extensible**: Can notify external orchestration services (e.g., [dependency-orchestrator](https://github.com/patelmm79/dependency-orchestrator))
 
 ## Core Architecture
 
-### Four-Tier System
+### Three-Tier System
 
 1. **GitHub Actions Workflow** (`.github/workflows/main.yml`)
    - Triggers on push/PR to main/master/develop branches
@@ -27,31 +27,15 @@ This is a Pattern Discovery + Dependency Orchestrator System - an automated arch
    - Manages knowledge base stored in separate GitHub repository
    - Compares patterns across repositories
    - Sends notifications via Discord/Slack webhooks
-   - **NEW**: Notifies orchestrator service of changes
+   - Can notify external orchestrator services (optional)
 
-3. **Orchestrator Service** (`orchestrator/app.py`)
-   - FastAPI service deployed on GCP Cloud Run
-   - Receives change notifications via webhook
-   - Loads relationship configuration from `config/relationships.json`
-   - Dispatches triage agents for dependent repositories
-   - Creates GitHub issues with recommendations
-   - Handles consumer (API) and template (fork) relationships
-
-4. **Triage Agents** (`orchestrator/agents/`)
-   - **ConsumerTriageAgent**: Analyzes API breaking changes
-   - **TemplateTriageAgent**: Identifies infrastructure sync opportunities
-   - Uses Claude to intelligently assess impact
-   - Fetches code context from dependent repositories
-   - Returns structured analysis with confidence scores
-
-5. **Pre-commit Checker** (`scripts/precommit_checker.py`)
+3. **Pre-commit Checker** (`scripts/precommit_checker.py`)
    - Optional local validation before commits
    - Fetches knowledge base from remote URL
    - Warns developers about pattern divergence interactively
 
 ### Data Flow
 
-#### Pattern Discovery Flow
 ```
 Monitored Project (Push) → Calls Reusable Workflow → Pattern Analyzer → Claude API
                                                             ↓
@@ -62,27 +46,8 @@ Monitored Project (Push) → Calls Reusable Workflow → Pattern Analyzer → Cl
                                                   Find Similar Patterns
                                                             ↓
                                                   Webhook Notification
-```
-
-#### NEW: Dependency Orchestration Flow
-```
-Monitored Project (Push) → GitHub Actions → Pattern Analyzer
-                                                   ↓
-                                            Extract Patterns
-                                                   ↓
-                                   Notify Orchestrator (HTTP POST)
-                                                   ↓
-                              ┌────────────────────┴────────────────────┐
-                              ↓                                         ↓
-                     Consumer Relationship?                  Template Relationship?
-                              ↓                                         ↓
-                   ConsumerTriageAgent                      TemplateTriageAgent
-                   - Fetch consumer code                    - Fetch derivative code
-                   - Analyze with Claude                    - Filter shared concerns
-                   - Detect breaking changes                - Analyze with Claude
-                              ↓                                         ↓
-                       Create GitHub Issue                     Create GitHub Issue
-                       (if action required)                    (if beneficial)
+                                                            ↓
+                                               (Optional) External Orchestrator
 ```
 
 ### Reusable Workflow Architecture
