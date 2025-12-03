@@ -10,7 +10,10 @@
       "WebFetch(domain:www.develeap.com)",
       "WebFetch(domain:github.com)",
       "Bash(git commit:*)",
-      "Bash(iconv:*)"
+      "Bash(iconv:*)",
+      "Bash(git init:*)",
+      "Bash(git rm:*)",
+      "Bash(gh repo create:*)"
     ],
     "deny": [],
     "ask": []
