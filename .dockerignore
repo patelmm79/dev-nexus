@@ -1,0 +1,50 @@
+# Git and version control
+.git
+.github
+.gitignore
+
+# IDE and editor files
+.idea
+.vscode
+.claude
+*.swp
+*.swo
+*~
+
+# Python virtual environment
+venv/
+env/
+ENV/
+
+# Documentation (except CLAUDE.md which is needed)
+*.md
+!CLAUDE.md
+
+# Testing
+tests/
+*.test.py
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Development files
+pattern_dashboard.html
+scripts/precommit_checker.py
+scripts/test-local.sh
+
+# Environment files
+.env
+.env.local
+.env.example
+
+# Local analysis results
+pattern_analysis.json
+knowledge_base.json
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+.DS_Store

@@ -20,6 +20,18 @@ This system acts as your **automated institutional memory**, watching your commi
 
 ## 📦 What's Included
 
+### Hybrid Architecture
+
+**GitHub Actions Mode** (Traditional)
+- Automated pattern analysis on every commit
+- Background processing via workflows
+
+**A2A Protocol Server** (NEW)
+- Agent-to-Agent protocol for programmatic access
+- Query patterns, get deployment info, add lessons learned
+- Deploy to Cloud Run for 24/7 availability
+- Enables integration with other AI agents
+
 ### Core Components
 
 1. **Reusable GitHub Workflow** (`.github/workflows/main.yml`)
@@ -35,13 +47,30 @@ This system acts as your **automated institutional memory**, watching your commi
    - Sends smart notifications via Discord/Slack webhooks
    - Can notify external orchestrator services (like [dependency-orchestrator](https://github.com/patelmm79/dependency-orchestrator))
 
-3. **Dashboard** (`pattern_dashboard.html`)
+3. **A2A Server** (`a2a/server.py`) **NEW**
+   - FastAPI server with A2A protocol support
+   - Three skills:
+     - `query_patterns` (public) - Search for similar patterns
+     - `get_deployment_info` (public) - Get deployment metadata
+     - `add_lesson_learned` (authenticated) - Record lessons
+   - Publishes AgentCard at `/.well-known/agent.json`
+   - Deploy to Cloud Run for agent-to-agent communication
+   - See [A2A_QUICKSTART.md](A2A_QUICKSTART.md) for details
+
+4. **Enhanced Knowledge Base v2** **NEW**
+   - Patterns (existing)
+   - Deployment info: scripts, lessons learned, reusable components
+   - Dependency graph: consumers, derivatives, external deps
+   - Testing metadata and security posture
+   - Automatic migration from v1 to v2
+
+5. **Dashboard** (`pattern_dashboard.html`)
    - Visualize your architectural landscape
    - Interactive pattern similarity network graph
    - Track redundancy metrics across repos
    - Browse repository details and history
 
-4. **Pre-commit Hook** (`scripts/precommit_checker.py`) [Optional]
+6. **Pre-commit Hook** (`scripts/precommit_checker.py`) [Optional]
    - Check patterns before commit locally
    - Warn about divergence from other repos
    - Interactive approval workflow
@@ -107,7 +136,27 @@ git push
 
 **That's it!** The workflow automatically pulls the latest analyzer from this repo.
 
-### 4. Watch It Work
+### 4. (Optional) Deploy A2A Server
+
+Enable agent-to-agent communication for programmatic access:
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Test locally
+cp .env.example .env  # Add your credentials
+bash scripts/dev-server.sh
+
+# Deploy to Cloud Run
+export GCP_PROJECT_ID="your-project-id"
+bash scripts/setup-secrets.sh
+bash scripts/deploy.sh
+```
+
+**See [A2A_QUICKSTART.md](A2A_QUICKSTART.md) for complete A2A setup and usage.**
+
+### 5. Watch It Work
 
 On your next commit, the action will:
 1. Call the reusable workflow from dev-nexus
@@ -287,6 +336,57 @@ Set up a cron job to generate reports:
 0 9 * * 1 cd ~/dev-nexus && python generate_weekly_report.py
 ```
 
+## 🚀 A2A Integration
+
+The system now supports Agent-to-Agent (A2A) protocol for programmatic access:
+
+### Query Patterns from Other Agents
+
+```bash
+curl -X POST https://your-service.run.app/a2a/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "skill_id": "query_patterns",
+    "input": {
+      "keywords": ["retry", "exponential backoff"]
+    }
+  }'
+```
+
+### Get Deployment Info
+
+```bash
+curl -X POST https://your-service.run.app/a2a/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "skill_id": "get_deployment_info",
+    "input": {
+      "repository": "patelmm79/my-repo",
+      "include_lessons": true
+    }
+  }'
+```
+
+### Add Lesson Learned (Authenticated)
+
+```bash
+curl -X POST https://your-service.run.app/a2a/execute \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "skill_id": "add_lesson_learned",
+    "input": {
+      "repository": "patelmm79/my-repo",
+      "category": "performance",
+      "lesson": "Use connection pooling for database clients",
+      "context": "High load caused connection exhaustion",
+      "severity": "warning"
+    }
+  }'
+```
+
+**AgentCard**: Published at `/.well-known/agent.json` for discovery
+
 ## 🔮 Roadmap
 
 ### ✅ Phase 1: Pattern Discovery (Complete)
@@ -296,7 +396,14 @@ Set up a cron job to generate reports:
 - [x] Reusable GitHub workflow
 - [x] Dashboard visualization
 
-### Phase 2: Enhanced Intelligence (Next)
+### ✅ Phase 2: A2A Protocol Support (Complete)
+- [x] A2A server with FastAPI
+- [x] Three A2A skills (query, get info, add lessons)
+- [x] Enhanced knowledge base v2 schema
+- [x] Cloud Run deployment
+- [x] Flexible authentication
+
+### Phase 3: Enhanced Intelligence (Next)
 - [ ] Add vector embeddings for better pattern matching
 - [ ] Implement confidence score improvements
 - [ ] Pattern recommendation engine

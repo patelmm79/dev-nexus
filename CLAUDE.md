@@ -8,13 +8,36 @@ This is a Pattern Discovery Agent System - an automated architectural consistenc
 
 **Key Features**:
 1. **Pattern Discovery**: Detects similar patterns across repositories
-2. **Knowledge Base Management**: Maintains centralized architectural memory
+2. **Knowledge Base Management**: Maintains centralized architectural memory (v2 schema)
 3. **Reusable Workflows**: Monitored projects only need a tiny 15-line workflow file
-4. **Extensible**: Can notify external orchestration services (e.g., [dependency-orchestrator](https://github.com/patelmm79/dependency-orchestrator))
+4. **A2A Protocol Support**: Agent-to-Agent communication for programmatic access
+5. **Hybrid Architecture**: GitHub Actions CLI + A2A Server modes
+6. **Extensible**: Can notify external orchestration services (e.g., [dependency-orchestrator](https://github.com/patelmm79/dependency-orchestrator))
 
 ## Core Architecture
 
-### Three-Tier System
+### Hybrid Architecture (GitHub Actions + A2A Server)
+
+The system now operates in two modes:
+
+**1. GitHub Actions Mode (Traditional)**
+- Automated pattern analysis on every commit
+- Background processing via reusable workflows
+- Push-based architecture
+
+**2. A2A Server Mode (NEW)**
+- FastAPI server with A2A protocol support
+- Query patterns, get deployment info, add lessons learned
+- Pull-based architecture for agent-to-agent communication
+- Deploy to Cloud Run for 24/7 availability
+
+**Shared Core Logic**:
+- `core/pattern_extractor.py` - Claude API pattern extraction
+- `core/knowledge_base.py` - GitHub storage with v2 schema
+- `core/similarity_finder.py` - Pattern matching algorithms
+- Both modes use the same business logic (no duplication)
+
+### System Components
 
 1. **GitHub Actions Workflow** (`.github/workflows/main.yml`)
    - Triggers on push/PR to main/master/develop branches
@@ -29,7 +52,30 @@ This is a Pattern Discovery Agent System - an automated architectural consistenc
    - Sends notifications via Discord/Slack webhooks
    - Can notify external orchestrator services (optional)
 
-3. **Pre-commit Checker** (`scripts/precommit_checker.py`)
+3. **A2A Server** (`a2a/server.py`) **NEW**
+   - FastAPI application with A2A protocol endpoints
+   - Publishes AgentCard at `/.well-known/agent.json`
+   - Three skills:
+     - `query_patterns` (public) - Search for similar patterns
+     - `get_deployment_info` (public) - Get deployment/infrastructure info
+     - `add_lesson_learned` (authenticated) - Record lessons learned
+   - Flexible authentication (Workload Identity + Service Account)
+   - Cloud Run deployment ready
+
+4. **Core Modules** (`core/`) **NEW**
+   - `pattern_extractor.py` - Pattern extraction with Claude (refactored from pattern_analyzer.py)
+   - `knowledge_base.py` - KB CRUD with v2 schema and auto-migration
+   - `similarity_finder.py` - Enhanced similarity detection
+   - Shared by both GitHub Actions CLI and A2A server
+
+5. **Enhanced Knowledge Base v2** (`schemas/`) **NEW**
+   - Pydantic models for data validation
+   - New sections: deployment, dependencies, testing, security
+   - Automatic migration from v1 to v2
+   - `knowledge_base_v2.py` - Complete schema definitions
+   - `migration.py` - v1→v2 migration logic
+
+6. **Pre-commit Checker** (`scripts/precommit_checker.py`)
    - Optional local validation before commits
    - Fetches knowledge base from remote URL
    - Warns developers about pattern divergence interactively
@@ -58,24 +104,89 @@ The workflow in `.github/workflows/main.yml` is configured with `workflow_call` 
 2. **This Repository**: Contains all the logic, scripts, and dependencies
 3. **Execution**: GitHub Actions checks out both repos and runs the analyzer on the monitored code
 
-### Knowledge Base Structure
+### Knowledge Base Structure v2 (Enhanced)
 
-Stored as `knowledge_base.json` in a separate repository:
-- Repository entries with pattern history
-- Pattern metadata: patterns, decisions, reusable components, dependencies, problem domain, keywords
-- Timestamp and commit SHA tracking
+Stored as `knowledge_base.json` in a separate repository with enhanced schema:
+
+**V2 Schema Structure**:
+```json
+{
+  "schema_version": "2.0",
+  "repositories": {
+    "owner/repo": {
+      "latest_patterns": {
+        "patterns": [],
+        "decisions": [],
+        "reusable_components": [],
+        "dependencies": [],
+        "problem_domain": "...",
+        "keywords": []
+      },
+      "deployment": {
+        "scripts": [],
+        "lessons_learned": [],
+        "reusable_components": [],
+        "ci_cd_platform": "...",
+        "infrastructure": {}
+      },
+      "dependencies": {
+        "consumers": [],
+        "derivatives": [],
+        "external_dependencies": []
+      },
+      "testing": {
+        "test_frameworks": [],
+        "coverage_percentage": 0.0,
+        "test_patterns": []
+      },
+      "security": {
+        "security_patterns": [],
+        "authentication_methods": [],
+        "compliance_standards": []
+      },
+      "history": []
+    }
+  }
+}
+```
+
+**Automatic Migration**: V1 knowledge bases are automatically migrated to v2 on first load
 
 ## Development Commands
 
 ### Setup for Local Development
 
 ```bash
-# Install dependencies
-pip install anthropic requests pygithub gitpython
+# Install all dependencies (includes A2A server)
+pip install -r requirements.txt
+
+# Install dev dependencies (testing, linting)
+pip install -r requirements-dev.txt
 
 # Activate virtual environment (if using venv)
 venv\Scripts\activate  # Windows
 source venv/bin/activate  # Unix
+```
+
+### Running A2A Server Locally
+
+```bash
+# Set up environment
+cp .env.example .env
+# Edit .env with your credentials
+
+# Run server
+bash scripts/dev-server.sh
+
+# Or directly
+python a2a/server.py
+
+# Or with hot reload
+uvicorn a2a.server:app --host 0.0.0.0 --port 8080 --reload
+
+# Test endpoints
+curl http://localhost:8080/health
+curl http://localhost:8080/.well-known/agent.json | jq
 ```
 
 ### Running Pattern Analysis Locally
@@ -121,6 +232,29 @@ export KNOWLEDGE_BASE_URL="https://raw.githubusercontent.com/username/dev-nexus/
 # Install hook (Unix)
 chmod +x scripts/precommit_checker.py
 cp scripts/precommit_checker.py .git/hooks/pre-commit
+```
+
+### Deploying A2A Server to Cloud Run
+
+```bash
+# Set up GCP
+export GCP_PROJECT_ID="your-project-id"
+export GCP_REGION="us-central1"
+export KNOWLEDGE_BASE_REPO="patelmm79/dev-nexus"
+
+# Create secrets in Secret Manager
+export GITHUB_TOKEN="ghp_xxxxx"
+export ANTHROPIC_API_KEY="sk-ant-xxxxx"
+bash scripts/setup-secrets.sh
+
+# Deploy to Cloud Run
+bash scripts/deploy.sh
+
+# Test deployment
+SERVICE_URL=$(gcloud run services describe pattern-discovery-agent \
+  --region=us-central1 --format="value(status.url)")
+curl ${SERVICE_URL}/health
+curl ${SERVICE_URL}/.well-known/agent.json
 ```
 
 ### Dashboard Usage
