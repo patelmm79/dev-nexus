@@ -103,7 +103,7 @@ on:
     branches: [main, master, develop]
 jobs:
   analyze-patterns:
-    uses: patelmm79/architecture-kb/.github/workflows/main.yml@main
+    uses: patelmm79/dev-nexus/.github/workflows/main.yml@main
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -116,7 +116,7 @@ jobs:
 ```bash
 # Set environment variables
 export ANTHROPIC_API_KEY="your-key"
-export KNOWLEDGE_BASE_URL="https://raw.githubusercontent.com/username/architecture-kb/main/knowledge_base.json"
+export KNOWLEDGE_BASE_URL="https://raw.githubusercontent.com/username/dev-nexus/main/knowledge_base.json"
 
 # Install hook (Unix)
 chmod +x scripts/precommit_checker.py
@@ -166,7 +166,7 @@ Ignores noise files via `_is_meaningful_file()`:
 Each monitored repository needs:
 - `ANTHROPIC_API_KEY` - From console.anthropic.com (required)
 - `DISCORD_WEBHOOK_URL` - For notifications (optional)
-- `KNOWLEDGE_BASE_REPO` - Format: "username/architecture-kb" (optional)
+- `KNOWLEDGE_BASE_REPO` - Format: "username/dev-nexus" (optional)
 - `GITHUB_TOKEN` - Automatically provided by GitHub Actions
 
 ### Adjusting Sensitivity
