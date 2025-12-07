@@ -1,0 +1,58 @@
+# Pattern Discovery Agent - Requirements
+# Python 3.11+
+
+# ====================================
+# Existing Dependencies
+# ====================================
+
+# Claude AI API Client
+anthropic>=0.40.0
+
+# HTTP Client
+requests>=2.31.0
+
+# GitHub API Client
+pygithub>=2.1.1
+
+# Git Operations
+gitpython>=3.1.40
+
+# ====================================
+# NEW: A2A Protocol Dependencies
+# ====================================
+
+# Google Agent Development Kit with A2A support
+google-genai-adk>=0.2.0
+
+# A2A Protocol SDK
+a2a-sdk>=0.3.0
+
+# ASGI Server (with performance extras)
+uvicorn[standard]>=0.25.0
+
+# Web Framework for A2A server
+fastapi>=0.108.0
+
+# Data validation and settings
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# ====================================
+# NEW: Google Cloud Dependencies
+# ====================================
+
+# Secret Manager for secure credential storage
+google-cloud-secret-manager>=2.16.0
+
+# Authentication and authorization
+google-auth>=2.25.0
+
+# Cloud Storage (optional, for future use)
+google-cloud-storage>=2.10.0
+
+# ====================================
+# NEW: Utilities
+# ====================================
+
+# Environment variable management
+python-dotenv>=1.0.0

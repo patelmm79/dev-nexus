@@ -1,0 +1,58 @@
+# This file specifies files that are excluded from Cloud Build
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!CLAUDE.md
+docs/
+
+# Development
+.env
+.env.local
+*.bak
+.DS_Store
+
+# GitHub workflows (not needed in container)
+.github/
+
+# Dashboard (client-side only)
+pattern_dashboard.html
+
+# Scripts not needed in container
+scripts/precommit_checker.py
+scripts/deploy.sh
+scripts/test-local.sh
+
+# Tests
+tests/
+
+# Plans
+.claude/

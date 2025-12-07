@@ -1,0 +1,19 @@
+# Development Dependencies
+
+# Testing
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+pytest-mock>=3.12.0
+pytest-cov>=4.1.0
+
+# Code Formatting
+black>=23.12.1
+
+# Linting
+ruff>=0.1.8
+
+# Type Checking
+mypy>=1.7.1
+
+# Test Client
+httpx>=0.25.2
