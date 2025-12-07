@@ -387,6 +387,53 @@ curl -X POST https://your-service.run.app/a2a/execute \
 
 **AgentCard**: Published at `/.well-known/agent.json` for discovery
 
+### Bidirectional A2A Communication
+
+Dev-nexus acts as the **central hub** for coordinating with external A2A agents:
+
+#### External Agents
+
+**dependency-orchestrator**: Manages dependency relationships and impact analysis
+- Receives pattern change notifications from dev-nexus
+- Provides dependency graph information
+- Triages which repos need updates when dependencies change
+
+**pattern-miner**: Deep pattern extraction and code comparison
+- Performs detailed pattern analysis on request
+- Compares implementations across repositories
+- Provides pattern recommendations
+
+#### Additional Skills (7 total)
+
+Beyond the core 3 skills, dev-nexus exposes 4 additional skills for agent coordination:
+
+1. **get_repository_list** (Public) - List all tracked repositories
+2. **get_cross_repo_patterns** (Public) - Find patterns used across multiple repos
+3. **update_dependency_info** (Authenticated) - Update dependency graphs
+4. **health_check_external** (Public) - Check health of external agents
+
+#### Configuration
+
+Set these environment variables to enable bidirectional communication:
+
+```bash
+# dependency-orchestrator
+export ORCHESTRATOR_URL=https://your-orchestrator-service.run.app
+export ORCHESTRATOR_TOKEN=your-service-account-token
+
+# pattern-miner
+export PATTERN_MINER_URL=https://your-pattern-miner-service.run.app
+export PATTERN_MINER_TOKEN=your-service-account-token
+
+# Allow these services to call dev-nexus
+export ALLOWED_SERVICE_ACCOUNTS=orchestrator@project.iam.gserviceaccount.com,pattern-miner@project.iam.gserviceaccount.com
+```
+
+When pattern analysis completes, dev-nexus automatically:
+1. Notifies dependency-orchestrator of pattern changes
+2. Requests impact analysis for dependent repos
+3. Logs coordination results
+
 ## 🔮 Roadmap
 
 ### ✅ Phase 1: Pattern Discovery (Complete)

@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.pattern_extractor import PatternExtractor
 from core.knowledge_base import KnowledgeBaseManager
 from core.similarity_finder import SimilarityFinder
+from core.integration_service import IntegrationService
 
 class PatternAnalyzer:
     def __init__(self):
@@ -47,6 +48,7 @@ class PatternAnalyzer:
         self.pattern_extractor = PatternExtractor(self.anthropic_client)
         self.kb_manager = KnowledgeBaseManager(self.github_client, self.kb_repo_name)
         self.similarity_finder = SimilarityFinder()
+        self.integration_service = IntegrationService()
 
     def get_recent_changes(self) -> Dict:
         """Extract recent commit changes"""
@@ -197,9 +199,22 @@ class PatternAnalyzer:
             current_repo=self.current_repo
         )
 
-        # Step 5: Notify orchestrator about dependencies
-        print("Notifying orchestrator for dependency triage...")
-        self.notify_orchestrator(changes, patterns.model_dump(mode='json'))
+        # Step 5: Coordinate with external A2A agents
+        print("Coordinating with external agents (orchestrator, pattern-miner)...")
+        coordination_result = self.integration_service.coordinate_pattern_update(
+            self.current_repo,
+            patterns,
+            self.current_sha
+        )
+
+        # Log coordination results
+        if "error" not in coordination_result:
+            print(f"✓ External agents notified successfully")
+            if coordination_result.get("impact_analysis", {}).get("affected_repos"):
+                affected = coordination_result["impact_analysis"]["affected_repos"]
+                print(f"  Impact: {len(affected)} dependent repositories may be affected")
+        else:
+            print(f"⚠ External agent coordination: {coordination_result.get('error', 'Unknown error')}")
 
         # Step 6: Notify about pattern similarities
         if similarities:

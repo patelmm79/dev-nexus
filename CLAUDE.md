@@ -55,17 +55,23 @@ The system now operates in two modes:
 3. **A2A Server** (`a2a/server.py`) **NEW**
    - FastAPI application with A2A protocol endpoints
    - Publishes AgentCard at `/.well-known/agent.json`
-   - Three skills:
+   - Seven skills for comprehensive agent coordination:
      - `query_patterns` (public) - Search for similar patterns
      - `get_deployment_info` (public) - Get deployment/infrastructure info
      - `add_lesson_learned` (authenticated) - Record lessons learned
+     - `get_repository_list` (public) - List all tracked repositories
+     - `get_cross_repo_patterns` (public) - Find patterns across multiple repos
+     - `update_dependency_info` (authenticated) - Update dependency graphs
+     - `health_check_external` (public) - Check external agent health
    - Flexible authentication (Workload Identity + Service Account)
    - Cloud Run deployment ready
+   - Coordinates with dependency-orchestrator and pattern-miner
 
 4. **Core Modules** (`core/`) **NEW**
    - `pattern_extractor.py` - Pattern extraction with Claude (refactored from pattern_analyzer.py)
    - `knowledge_base.py` - KB CRUD with v2 schema and auto-migration
    - `similarity_finder.py` - Enhanced similarity detection
+   - `integration_service.py` - Bidirectional A2A coordination with external agents
    - Shared by both GitHub Actions CLI and A2A server
 
 5. **Enhanced Knowledge Base v2** (`schemas/`) **NEW**

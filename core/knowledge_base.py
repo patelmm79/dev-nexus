@@ -260,6 +260,23 @@ class KnowledgeBaseManager:
             print(f"Error updating dependency info: {e}")
             return False
 
+    def update_dependency_info(
+        self,
+        repository_name: str,
+        dependency_info: DependencyInfo
+    ) -> bool:
+        """
+        Update dependency information for a repository (alias for add_dependency_info)
+
+        Args:
+            repository_name: Repository name (format: "owner/repo")
+            dependency_info: DependencyInfo object
+
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.add_dependency_info(repository_name, dependency_info)
+
     def get_repository_info(self, repository_name: str) -> Optional[RepositoryMetadata]:
         """
         Get complete repository metadata

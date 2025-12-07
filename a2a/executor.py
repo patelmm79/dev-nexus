@@ -10,7 +10,8 @@ from datetime import datetime
 
 from core.knowledge_base import KnowledgeBaseManager
 from core.similarity_finder import SimilarityFinder
-from schemas.knowledge_base_v2 import LessonLearned
+from core.integration_service import IntegrationService
+from schemas.knowledge_base_v2 import LessonLearned, DependencyInfo
 
 
 class PatternDiscoveryExecutor:
@@ -30,6 +31,7 @@ class PatternDiscoveryExecutor:
         """
         self.kb_manager = kb_manager
         self.similarity_finder = similarity_finder
+        self.integration_service = IntegrationService()
 
     async def execute(self, skill_id: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -50,10 +52,22 @@ class PatternDiscoveryExecutor:
             return await self._handle_get_deployment_info(input_data)
         elif skill_id == "add_lesson_learned":
             return await self._handle_add_lesson_learned(input_data)
+        elif skill_id == "get_repository_list":
+            return await self._handle_get_repository_list(input_data)
+        elif skill_id == "get_cross_repo_patterns":
+            return await self._handle_get_cross_repo_patterns(input_data)
+        elif skill_id == "update_dependency_info":
+            return await self._handle_update_dependency_info(input_data)
+        elif skill_id == "health_check_external":
+            return await self._handle_health_check_external(input_data)
         else:
             return {
                 "error": f"Unknown skill: {skill_id}",
-                "available_skills": ["query_patterns", "get_deployment_info", "add_lesson_learned"]
+                "available_skills": [
+                    "query_patterns", "get_deployment_info", "add_lesson_learned",
+                    "get_repository_list", "get_cross_repo_patterns",
+                    "update_dependency_info", "health_check_external"
+                ]
             }
 
     async def _handle_query_patterns(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -271,6 +285,185 @@ class PatternDiscoveryExecutor:
             return {
                 "success": False,
                 "error": f"Failed to add lesson learned: {str(e)}"
+            }
+
+    async def _handle_get_repository_list(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get list of all tracked repositories (PUBLIC)
+
+        Input:
+            - include_metadata: bool - Include pattern counts and last updated (default: True)
+
+        Output:
+            - repositories: List of repository names with optional metadata
+            - total_count: Total number of repositories
+        """
+        try:
+            include_metadata = input_data.get('include_metadata', True)
+
+            kb = self.kb_manager.load_knowledge_base()
+
+            if include_metadata:
+                repositories = [
+                    {
+                        "name": repo_name,
+                        "pattern_count": len(repo_info.latest_patterns.patterns),
+                        "last_updated": repo_info.latest_patterns.analyzed_at.isoformat(),
+                        "problem_domain": repo_info.latest_patterns.problem_domain,
+                        "keywords": repo_info.latest_patterns.keywords[:5]  # Top 5 keywords
+                    }
+                    for repo_name, repo_info in kb.repositories.items()
+                ]
+            else:
+                repositories = list(kb.repositories.keys())
+
+            return {
+                "repositories": repositories,
+                "total_count": len(repositories),
+                "timestamp": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            return {
+                "error": f"Failed to get repository list: {str(e)}",
+                "repositories": [],
+                "total_count": 0
+            }
+
+    async def _handle_get_cross_repo_patterns(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Find patterns that exist across multiple repositories (PUBLIC)
+
+        Input:
+            - min_repos: int - Minimum number of repos a pattern must appear in (default: 2)
+            - pattern_type: str - Filter by pattern type (optional)
+
+        Output:
+            - cross_repo_patterns: List of patterns with repos that use them
+            - total_patterns: Number of cross-repo patterns found
+        """
+        try:
+            min_repos = input_data.get('min_repos', 2)
+            pattern_type = input_data.get('pattern_type')
+
+            kb = self.kb_manager.load_knowledge_base()
+
+            # Aggregate patterns across all repos
+            pattern_to_repos = {}
+
+            for repo_name, repo_info in kb.repositories.items():
+                for pattern in repo_info.latest_patterns.patterns:
+                    if pattern_type and pattern_type.lower() not in pattern.lower():
+                        continue
+
+                    if pattern not in pattern_to_repos:
+                        pattern_to_repos[pattern] = []
+                    pattern_to_repos[pattern].append(repo_name)
+
+            # Filter to patterns appearing in min_repos or more
+            cross_repo_patterns = [
+                {
+                    "pattern": pattern,
+                    "repositories": repos,
+                    "repo_count": len(repos)
+                }
+                for pattern, repos in pattern_to_repos.items()
+                if len(repos) >= min_repos
+            ]
+
+            # Sort by repo count (most common first)
+            cross_repo_patterns.sort(key=lambda x: x['repo_count'], reverse=True)
+
+            return {
+                "cross_repo_patterns": cross_repo_patterns,
+                "total_patterns": len(cross_repo_patterns),
+                "min_repos": min_repos,
+                "timestamp": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            return {
+                "error": f"Failed to get cross-repo patterns: {str(e)}",
+                "cross_repo_patterns": [],
+                "total_patterns": 0
+            }
+
+    async def _handle_update_dependency_info(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update dependency information for a repository (AUTHENTICATED)
+
+        Input:
+            - repository: str - Repository name (format: "owner/repo")
+            - dependency_info: dict - Dependency information to update
+                - consumers: List[dict] - Repos that depend on this one
+                - derivatives: List[dict] - Forks/derivatives
+                - external_dependencies: List[str] - External dependencies
+
+        Output:
+            - success: bool
+            - message: str
+            - repository: str
+        """
+        try:
+            repository = input_data.get('repository')
+            dependency_info = input_data.get('dependency_info', {})
+
+            if not repository:
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: 'repository'"
+                }
+
+            # Create DependencyInfo object
+            dep_info = DependencyInfo(
+                consumers=dependency_info.get('consumers', []),
+                derivatives=dependency_info.get('derivatives', []),
+                external_dependencies=dependency_info.get('external_dependencies', [])
+            )
+
+            # Update in knowledge base
+            success = self.kb_manager.update_dependency_info(repository, dep_info)
+
+            if success:
+                return {
+                    "success": True,
+                    "message": f"Dependency info updated for {repository}",
+                    "repository": repository,
+                    "kb_url": f"https://github.com/{self.kb_manager.kb_repo_name}/blob/main/knowledge_base.json"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Failed to update dependency info in knowledge base"
+                }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to update dependency info: {str(e)}"
+            }
+
+    async def _handle_health_check_external(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Check health status of external A2A agents (PUBLIC)
+
+        Input:
+            - None
+
+        Output:
+            - agents: dict - Health status for each external agent
+            - all_healthy: bool - Whether all agents are healthy
+            - timestamp: str
+        """
+        try:
+            health_status = self.integration_service.health_check()
+            return health_status
+
+        except Exception as e:
+            return {
+                "error": f"Failed to check external agent health: {str(e)}",
+                "agents": {},
+                "all_healthy": False
             }
 
     async def cancel(self, task_id: str) -> Dict[str, Any]:

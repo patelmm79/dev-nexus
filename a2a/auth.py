@@ -176,5 +176,5 @@ def is_skill_protected(skill_id: str) -> bool:
     Returns:
         True if skill requires authentication
     """
-    PROTECTED_SKILLS = ["add_lesson_learned"]
+    PROTECTED_SKILLS = ["add_lesson_learned", "update_dependency_info"]
     return skill_id in PROTECTED_SKILLS

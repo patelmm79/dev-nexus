@@ -203,13 +203,131 @@ async def get_agent_card():
                         "description": "Record a performance lesson learned"
                     }
                 ]
+            },
+            {
+                "id": "get_repository_list",
+                "name": "Get Repository List",
+                "description": "Get list of all tracked repositories with optional metadata",
+                "tags": ["repositories", "list", "metadata"],
+                "requires_authentication": False,
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "include_metadata": {
+                            "type": "boolean",
+                            "description": "Include pattern counts and last updated timestamps",
+                            "default": True
+                        }
+                    }
+                },
+                "examples": [
+                    {
+                        "input": {"include_metadata": True},
+                        "description": "Get all repositories with metadata"
+                    }
+                ]
+            },
+            {
+                "id": "get_cross_repo_patterns",
+                "name": "Get Cross-Repository Patterns",
+                "description": "Find patterns that exist across multiple repositories, useful for identifying common architectural decisions",
+                "tags": ["patterns", "cross-repo", "analysis"],
+                "requires_authentication": False,
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "min_repos": {
+                            "type": "integer",
+                            "description": "Minimum number of repositories a pattern must appear in",
+                            "default": 2
+                        },
+                        "pattern_type": {
+                            "type": "string",
+                            "description": "Filter by pattern type (optional)"
+                        }
+                    }
+                },
+                "examples": [
+                    {
+                        "input": {"min_repos": 3},
+                        "description": "Find patterns used in 3 or more repositories"
+                    }
+                ]
+            },
+            {
+                "id": "update_dependency_info",
+                "name": "Update Dependency Information",
+                "description": "Update dependency graph for a repository - consumers, derivatives, and external dependencies",
+                "tags": ["dependencies", "graph", "orchestration"],
+                "requires_authentication": True,
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "type": "string",
+                            "description": "Repository name in format 'owner/repo'"
+                        },
+                        "dependency_info": {
+                            "type": "object",
+                            "description": "Dependency information",
+                            "properties": {
+                                "consumers": {
+                                    "type": "array",
+                                    "description": "List of repositories that depend on this one"
+                                },
+                                "derivatives": {
+                                    "type": "array",
+                                    "description": "List of forks or derivatives"
+                                },
+                                "external_dependencies": {
+                                    "type": "array",
+                                    "description": "List of external dependencies"
+                                }
+                            }
+                        }
+                    },
+                    "required": ["repository", "dependency_info"]
+                },
+                "examples": [
+                    {
+                        "input": {
+                            "repository": "patelmm79/shared-lib",
+                            "dependency_info": {
+                                "consumers": [{"repository": "patelmm79/api-service", "relationship": "imports"}],
+                                "external_dependencies": ["requests", "pydantic"]
+                            }
+                        },
+                        "description": "Update dependency information for shared library"
+                    }
+                ]
+            },
+            {
+                "id": "health_check_external",
+                "name": "Check External Agent Health",
+                "description": "Check health status of external A2A agents (dependency-orchestrator, pattern-miner)",
+                "tags": ["health", "monitoring", "agents"],
+                "requires_authentication": False,
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}
+                },
+                "examples": [
+                    {
+                        "input": {},
+                        "description": "Check health of all external agents"
+                    }
+                ]
             }
         ],
         "metadata": {
             "repository": "patelmm79/dev-nexus",
             "documentation": "https://github.com/patelmm79/dev-nexus#readme",
-            "authentication_note": "Read operations (query_patterns, get_deployment_info) are public. Write operations (add_lesson_learned) require A2A authentication.",
-            "knowledge_base": config.knowledge_base_repo
+            "authentication_note": "Read operations are public. Write operations (add_lesson_learned, update_dependency_info) require A2A authentication.",
+            "knowledge_base": config.knowledge_base_repo,
+            "external_agents": {
+                "dependency_orchestrator": "Coordinates dependency updates and impact analysis",
+                "pattern_miner": "Deep pattern extraction and code comparison"
+            }
         }
     }
 
