@@ -14,7 +14,7 @@ Go to your project's repository on GitHub:
 |-------------|-----------|-------------|---------|
 | `ANTHROPIC_API_KEY` | ✅ Required | Get from [console.anthropic.com](https://console.anthropic.com) | `sk-ant-api03-...` |
 | `DISCORD_WEBHOOK_URL` | Optional | Discord/Slack webhook for notifications | `https://discord.com/api/webhooks/...` |
-| `KNOWLEDGE_BASE_REPO` | Optional | Your KB repo (defaults to this one) | `patelmm79/architecture-kb` |
+| `KNOWLEDGE_BASE_REPO` | Optional | Your KB repo (defaults to this one) | `patelmm79/dev-nexus` |
 
 ### 2. Create Workflow File in Your Project
 
@@ -33,7 +33,7 @@ on:
 
 jobs:
   analyze-patterns:
-    uses: patelmm79/architecture-kb/.github/workflows/main.yml@main
+    uses: patelmm79/dev-nexus/.github/workflows/main.yml@main
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -53,13 +53,13 @@ That's it! The workflow will now run automatically on every push.
 ## How It Works
 
 1. **Your project** has only the tiny workflow file above (~15 lines)
-2. **This repository** (architecture-kb) contains:
+2. **This repository** (dev-nexus) contains:
    - The reusable workflow (`.github/workflows/main.yml`)
    - The pattern analyzer script (`scripts/pattern_analyzer.py`)
    - All the logic and dependencies
 
 3. When you push to your project:
-   - GitHub Actions calls the reusable workflow from architecture-kb
+   - GitHub Actions calls the reusable workflow from dev-nexus
    - The workflow checks out your code
    - Downloads the pattern analyzer script
    - Runs the analysis using your secrets
@@ -118,7 +118,7 @@ After setup, verify it's working:
 ### Workflow fails with "Secret not found"
 - Verify `ANTHROPIC_API_KEY` is set in repository secrets
 - Check the secret name matches exactly (case-sensitive)
-- Ensure you set it in the **project being monitored**, not in architecture-kb
+- Ensure you set it in the **project being monitored**, not in dev-nexus
 
 ### "Permission denied" errors
 - The `GITHUB_TOKEN` is provided automatically
@@ -154,7 +154,7 @@ on:
 
 jobs:
   analyze-patterns:
-    uses: patelmm79/architecture-kb/.github/workflows/main.yml@main
+    uses: patelmm79/dev-nexus/.github/workflows/main.yml@main
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -171,7 +171,7 @@ done
 
 ## Updating the System
 
-When the pattern analyzer is updated in architecture-kb:
+When the pattern analyzer is updated in dev-nexus:
 - **No action needed!** Your projects automatically use the latest version
 - The workflow references `@main` which always pulls the latest code
 - For stability, you can pin to a specific commit: `@7510cc4` instead of `@main`

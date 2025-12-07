@@ -32,7 +32,7 @@ jobs:
       - name: Checkout pattern analyzer
         uses: actions/checkout@v4
         with:
-          repository: patelmm79/architecture-kb
+          repository: patelmm79/dev-nexus
           path: .pattern-discovery
           sparse-checkout: |
             scripts/pattern_analyzer.py
