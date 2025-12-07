@@ -1,4 +1,4 @@
-﻿# Architecture KB: Pattern Discovery Agent
+﻿# Dev-Nexus: Pattern Discovery Agent
 
 > Automated architectural consistency and pattern discovery across your GitHub repositories
 
@@ -51,8 +51,8 @@ This system acts as your **automated institutional memory**, watching your commi
 ### 1. Create Knowledge Base Repository
 
 ```bash
-gh repo create architecture-kb --private
-cd architecture-kb
+gh repo create dev-nexus --private
+cd dev-nexus
 echo "# Architecture Knowledge Base" > README.md
 git add . && git commit -m "init" && git push
 ```
@@ -66,7 +66,7 @@ In **each repository** you want to monitor, add these GitHub secrets:
 
 **Optional:**
 - `DISCORD_WEBHOOK_URL` - For notifications
-- `KNOWLEDGE_BASE_REPO` - Format: `username/architecture-kb`
+- `KNOWLEDGE_BASE_REPO` - Format: `username/dev-nexus`
 
 ### 3. Add to Repository
 
@@ -91,7 +91,7 @@ on:
 
 jobs:
   analyze-patterns:
-    uses: patelmm79/architecture-kb/.github/workflows/main.yml@main
+    uses: patelmm79/dev-nexus/.github/workflows/main.yml@main
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -110,7 +110,7 @@ git push
 ### 4. Watch It Work
 
 On your next commit, the action will:
-1. Call the reusable workflow from architecture-kb
+1. Call the reusable workflow from dev-nexus
 2. Analyze your changes using Claude
 3. Extract patterns and update knowledge base
 4. Check for similarities across other repos
@@ -138,7 +138,7 @@ git push
 
 ### Day 14: Review Patterns
 Open your knowledge base dashboard to see patterns across all repos:
-1. Download `knowledge_base.json` from your architecture-kb repo
+1. Download `knowledge_base.json` from your dev-nexus repo
 2. Open `pattern_dashboard.html` in your browser
 3. Load the knowledge base file
 4. Explore:
@@ -284,7 +284,7 @@ Set up a cron job to generate reports:
 
 ```bash
 # crontab -e
-0 9 * * 1 cd ~/architecture-kb && python generate_weekly_report.py
+0 9 * * 1 cd ~/dev-nexus && python generate_weekly_report.py
 ```
 
 ## 🔮 Roadmap
