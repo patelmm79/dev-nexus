@@ -58,7 +58,7 @@ The system now operates in two modes:
    - **Dynamic AgentCard**: Generated from skill registry (not hardcoded)
    - **Thin Coordinator**: 250 lines (reduced from 445 lines)
    - Publishes AgentCard at `/.well-known/agent.json`
-   - Seven skills for comprehensive agent coordination:
+   - Nine skills for comprehensive agent coordination:
      - `query_patterns` (public) - Search for similar patterns
      - `get_deployment_info` (public) - Get deployment/infrastructure info
      - `add_lesson_learned` (authenticated) - Record lessons learned
@@ -66,6 +66,8 @@ The system now operates in two modes:
      - `get_cross_repo_patterns` (public) - Find patterns across multiple repos
      - `update_dependency_info` (authenticated) - Update dependency graphs
      - `health_check_external` (public) - Check external agent health
+     - `check_documentation_standards` (public) - **NEW** Check repository docs for standards conformity
+     - `validate_documentation_update` (public) - **NEW** Validate docs updated after code changes
    - Flexible authentication (Workload Identity + Service Account)
    - Cloud Run deployment ready
    - Coordinates with dependency-orchestrator and pattern-miner
@@ -80,6 +82,7 @@ The system now operates in two modes:
    - `repository_info.py` - Repository information skills
    - `knowledge_management.py` - KB update skills (authenticated)
    - `integration.py` - External agent coordination
+   - `documentation_standards.py` - **NEW** Documentation standards compliance checking
    - Adding new skill = create one file (not edit multiple files)
 
 5. **Core Modules** (`core/`)
@@ -87,6 +90,7 @@ The system now operates in two modes:
    - `knowledge_base.py` - KB CRUD with v2 schema and auto-migration
    - `similarity_finder.py` - Enhanced similarity detection
    - `integration_service.py` - Bidirectional A2A coordination with external agents
+   - `documentation_standards_checker.py` - **NEW** Documentation standards compliance checker
    - Shared by both GitHub Actions CLI and A2A server
 
 5. **Enhanced Knowledge Base v2** (`schemas/`) **NEW**

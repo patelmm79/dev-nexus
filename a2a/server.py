@@ -31,6 +31,7 @@ from a2a.skills.pattern_query import PatternQuerySkills
 from a2a.skills.repository_info import RepositoryInfoSkills
 from a2a.skills.knowledge_management import KnowledgeManagementSkills
 from a2a.skills.integration import IntegrationSkills
+from a2a.skills.documentation_standards import DocumentationStandardsSkills
 
 # Load configuration
 config = load_config()
@@ -69,6 +70,12 @@ for skill in knowledge_mgmt_skills.get_skills():
 
 integration_skills = IntegrationSkills(integration_service)
 for skill in integration_skills.get_skills():
+    registry.register(skill)
+
+# Register documentation standards skills
+standards_file_path = Path(__file__).parent.parent / "docs" / "DOCUMENTATION_STANDARDS.md"
+doc_standards_skills = DocumentationStandardsSkills(str(standards_file_path))
+for skill in doc_standards_skills.get_skills():
     registry.register(skill)
 
 # Initialize executor with registry
