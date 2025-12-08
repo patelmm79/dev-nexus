@@ -32,6 +32,7 @@ from a2a.skills.repository_info import RepositoryInfoSkills
 from a2a.skills.knowledge_management import KnowledgeManagementSkills
 from a2a.skills.integration import IntegrationSkills
 from a2a.skills.documentation_standards import DocumentationStandardsSkills
+from a2a.skills.runtime_monitoring import RuntimeMonitoringSkills
 
 # Load configuration
 config = load_config()
@@ -76,6 +77,11 @@ for skill in integration_skills.get_skills():
 standards_file_path = Path(__file__).parent.parent / "docs" / "DOCUMENTATION_STANDARDS.md"
 doc_standards_skills = DocumentationStandardsSkills(str(standards_file_path))
 for skill in doc_standards_skills.get_skills():
+    registry.register(skill)
+
+# Register runtime monitoring skills
+runtime_monitoring_skills = RuntimeMonitoringSkills(kb_manager)
+for skill in runtime_monitoring_skills.get_skills():
     registry.register(skill)
 
 # Initialize executor with registry

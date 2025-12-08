@@ -14,6 +14,7 @@ Dev-Nexus acts as the **central pattern intelligence hub** in a distributed syst
 **Key Integration Partners:**
 - **dependency-orchestrator**: Dependency management and impact analysis
 - **pattern-miner**: Deep code analysis and pattern extraction
+- **agentic-log-attacker**: Production monitoring and runtime issue tracking
 - Future agents: Testing coordinator, security scanner, etc.
 
 ---
@@ -368,6 +369,397 @@ The **pattern-miner** provides deep code analysis capabilities beyond dev-nexus'
     │  Knowledge Base │  - Recommended implementations
     └─────────────────┘
 ```
+
+---
+
+## Integration with agentic-log-attacker
+
+### Purpose
+
+The **agentic-log-attacker** monitors production GCP services and creates a **complete feedback loop** from development to production:
+
+- **Runtime Monitoring**: Monitors 6 GCP services (Cloud Run, Functions, Build, GCE, GKE, App Engine)
+- **Automated Issue Detection**: AI-powered log analysis using Gemini and LangGraph
+- **Issue Reporting**: Creates GitHub issues and PRs with suggested fixes
+- **Pattern Learning**: Reports production issues back to dev-nexus for pattern health tracking
+
+### Complete Feedback Loop
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                    Development → Production Feedback Loop          │
+└────────────────────────────────────────────────────────────────────┘
+
+STAGE 1: DEVELOPMENT
+────────────────────
+    ┌─────────────┐
+    │  Developer  │  Writes code using patterns
+    │  Commits    │
+    └──────┬──────┘
+           │
+           ▼
+    ┌─────────────────┐
+    │  Dev-Nexus      │  Extracts patterns, stores in KB
+    │                 │  Notifies dependency-orchestrator
+    └──────┬──────────┘
+           │
+           │
+STAGE 2: DEPLOYMENT
+───────────────────
+           │
+           ▼
+    ┌─────────────────────┐
+    │  Orchestrator       │  Coordinates updates
+    │  Creates PRs        │  Updates dependents
+    └──────┬──────────────┘
+           │
+           ▼
+    ┌─────────────────┐
+    │  CI/CD Pipeline │  Tests, builds, deploys
+    │  (GitHub Actions)│
+    └──────┬──────────┘
+           │
+           │
+STAGE 3: PRODUCTION MONITORING
+───────────────────────────────
+           │
+           ▼
+    ┌─────────────────────────┐
+    │  GCP Services           │
+    │  - Cloud Run            │  Application runs in production
+    │  - Cloud Functions      │
+    │  - Cloud Build, etc.    │
+    └──────┬──────────────────┘
+           │
+           │ Logs
+           ▼
+    ┌─────────────────────────┐
+    │  Log-Attacker           │  Monitors logs 24/7
+    │  (Gemini + LangGraph)   │  - Detects errors
+    │                         │  - Analyzes patterns
+    │  Detects:               │  - Identifies root cause
+    │  • Errors               │  - Suggests fixes
+    │  • Performance issues   │
+    │  • Security problems    │
+    └──────┬──────────────────┘
+           │
+           │
+STAGE 4: FEEDBACK & LEARNING
+─────────────────────────────
+           │
+           ├──────────────────> GitHub Issue Created
+           │                    (With context & fix)
+           │
+           │ (A) Reports issue to dev-nexus
+           ▼
+    ┌─────────────────────────┐
+    │  Dev-Nexus              │  POST /a2a/execute
+    │                         │  skill: add_runtime_issue
+    │  Records:               │  {
+    │  - Issue type           │    "repository": "user/api-service",
+    │  - Severity             │    "issue_type": "error",
+    │  - Log snippet          │    "pattern_reference": "Redis caching",
+    │  - Root cause           │    "severity": "high",
+    │  - Suggested fix        │    "metrics": {...}
+    │  - Pattern reference    │  }
+    │  - Metrics              │
+    └──────┬──────────────────┘
+           │
+           │ (B) Queries similar issues
+           │
+           │ Returns: "This issue seen 3x before in 2 repos"
+           │
+           ▼
+    ┌─────────────────────────┐
+    │  Pattern Health         │  Tracks pattern reliability:
+    │  Tracking               │  - Redis caching: 85% health
+    │                         │  - JWT validation: 95% health
+    │  Knowledge Base         │  - API retry: 70% health
+    │  Enhanced with:         │
+    │  • Runtime issues       │
+    │  • Production metrics   │
+    │  • Pattern health       │
+    └──────┬──────────────────┘
+           │
+           │ (C) Orchestrator uses health data
+           ▼
+    ┌─────────────────────────┐
+    │  Orchestrator           │  Smart decisions based on health:
+    │  Decision Engine        │  - Avoid patterns with issues
+    │                         │  - Prioritize stable patterns
+    │  "Redis caching has     │  - Warn before using risky patterns
+    │   recent issues, use    │
+    │   alternative pattern"  │
+    └─────────────────────────┘
+           │
+           │ Feedback informs next development cycle
+           └────────> Back to STAGE 1 (Developer)
+
+Result: Institutional memory from production → development
+```
+
+### Three-Way Communication
+
+Dev-Nexus now coordinates with **both** dependency-orchestrator and agentic-log-attacker:
+
+```
+         ┌─────────────────────────┐
+         │      Dev-Nexus          │
+         │  (Pattern Intelligence) │
+         │                         │
+         │  • Pattern discovery    │
+         │  • Knowledge base       │
+         │  • Runtime tracking     │
+         └────────┬────────────────┘
+                  │
+    ┌─────────────┴─────────────┐
+    │                           │
+    │ (1) Pattern changes       │ (4) Runtime issues
+    │ (2) Query dependencies    │ (5) Pattern health
+    │ (3) Record lessons        │ (6) Similar issues
+    │                           │
+    ▼                           ▼
+┌─────────────────────┐  ┌────────────────────────┐
+│ Orchestrator        │  │  Log-Attacker          │
+│                     │  │                        │
+│ • Dependency mgmt   │  │  • GCP log monitoring  │
+│ • Impact analysis   │  │  • Issue detection     │
+│ • PR creation       │  │  • GitHub integration  │
+│ • Update coord.     │  │  • Fix suggestions     │
+└─────────────────────┘  └────────────────────────┘
+```
+
+### Real-World Scenario
+
+**Scenario**: Redis connection pool exhaustion in production
+
+```
+Timeline:
+─────────
+
+12:00 PM - Production Error
+           ┌────────────────────────────────────┐
+           │ Cloud Run Service: api-service     │
+           │ Error: "Redis connection pool      │
+           │        exhausted after 45 retries" │
+           │ Frequency: 150 errors/min          │
+           └────────────────────────────────────┘
+                          │
+                          ▼
+
+12:01 PM - Log-Attacker detects issue
+           ┌────────────────────────────────────┐
+           │ Log-Attacker Analysis:             │
+           │                                    │
+           │ Issue Type: Connection pool error  │
+           │ Root Cause: Pool size (10) too     │
+           │            small for traffic       │
+           │ Pattern: "Redis session caching"   │
+           │ Suggested Fix: Increase pool_size  │
+           │               to 50, max_overflow   │
+           │               to 20                 │
+           └────────────────────────────────────┘
+                          │
+                          ▼
+
+12:02 PM - Queries dev-nexus for similar issues
+           ┌────────────────────────────────────┐
+           │ POST /a2a/execute                  │
+           │ skill: query_known_issues          │
+           │ {                                  │
+           │   "issue_type": "error",           │
+           │   "pattern": "Redis session caching"│
+           │ }                                  │
+           │                                    │
+           │ Response:                          │
+           │ "Similar issues found: 3           │
+           │  - user/web-app: same issue        │
+           │  - user/mobile-backend: similar    │
+           │  - user/admin-api: resolved"       │
+           └────────────────────────────────────┘
+                          │
+                          ▼
+
+12:03 PM - Creates GitHub issue with context
+           ┌────────────────────────────────────┐
+           │ GitHub Issue #234 Created:         │
+           │                                    │
+           │ Title: [PRODUCTION] Redis pool     │
+           │        exhaustion in api-service   │
+           │                                    │
+           │ Description:                       │
+           │ - Error details                    │
+           │ - Root cause analysis              │
+           │ - Suggested fix (from AI)          │
+           │ - Historical context (3 similar)   │
+           │ - Metrics (error rate, latency)    │
+           │                                    │
+           │ Labels: production, high, redis    │
+           └────────────────────────────────────┘
+                          │
+                          ▼
+
+12:04 PM - Reports to dev-nexus
+           ┌────────────────────────────────────┐
+           │ POST /a2a/execute                  │
+           │ skill: add_runtime_issue           │
+           │ {                                  │
+           │   "repository": "user/api-service",│
+           │   "service_type": "cloud_run",     │
+           │   "issue_type": "error",           │
+           │   "severity": "high",              │
+           │   "pattern_reference":             │
+           │     "Redis session caching",       │
+           │   "github_issue_url":              │
+           │     "github.com/.../issues/234",   │
+           │   "metrics": {                     │
+           │     "error_rate": 0.15,            │
+           │     "latency_p95": 2500            │
+           │   }                                │
+           │ }                                  │
+           └────────────────────────────────────┘
+                          │
+                          ▼
+
+12:05 PM - Dev-Nexus updates pattern health
+           ┌────────────────────────────────────┐
+           │ Pattern Health Updated:            │
+           │                                    │
+           │ "Redis session caching"            │
+           │ Previous health: 95%               │
+           │ New health: 85%                    │
+           │                                    │
+           │ Repositories affected: 1           │
+           │ Total repositories using: 4        │
+           │                                    │
+           │ Recommendation:                    │
+           │ "Review pool configuration in      │
+           │  all services using this pattern"  │
+           └────────────────────────────────────┘
+                          │
+                          ▼
+
+12:10 PM - Orchestrator queries pattern health
+           ┌────────────────────────────────────┐
+           │ Orchestrator planning Redis update │
+           │ for another service...             │
+           │                                    │
+           │ Queries dev-nexus:                 │
+           │ POST /a2a/execute                  │
+           │ skill: get_pattern_health          │
+           │ {"pattern": "Redis session caching"}│
+           │                                    │
+           │ Response shows 85% health          │
+           │                                    │
+           │ Decision: Include pool size review │
+           │          in all Redis updates      │
+           └────────────────────────────────────┘
+
+Result: Production issue → Pattern learning → Prevents future issues
+```
+
+### Integration Code
+
+Dev-Nexus provides **3 new skills** for log-attacker integration:
+
+```python
+1. add_runtime_issue (Authenticated)
+   - Records production issues from logs
+   - Links issues to patterns
+   - Tracks metrics (error rate, latency, etc.)
+   - Returns similar historical issues
+
+2. query_known_issues (Public)
+   - Search for previously seen issues
+   - Filter by pattern, severity, service type
+   - Helps log-attacker add context to new issues
+
+3. get_pattern_health (Public)
+   - Calculates health score (0-1) for patterns
+   - Shows which repos have issues
+   - Provides recommendations
+```
+
+**Example Integration** (from log-attacker):
+
+```python
+from examples.log_attacker_integration import DevNexusIntegration
+
+integration = DevNexusIntegration(
+    dev_nexus_url=os.getenv("DEV_NEXUS_URL"),
+    token=os.getenv("DEV_NEXUS_TOKEN")
+)
+
+# Report runtime issue
+await integration.report_runtime_issue(
+    repository="user/api-service",
+    service_type="cloud_run",
+    issue_type="error",
+    severity="high",
+    log_snippet="Redis connection pool exhausted",
+    root_cause="Pool size too small",
+    suggested_fix="Increase pool_size to 50",
+    pattern_reference="Redis session caching",
+    github_issue_url="https://github.com/.../issues/234",
+    metrics={"error_rate": 0.15, "latency_p95": 2500}
+)
+
+# Check pattern health before deployment
+health = await integration.get_pattern_health(
+    pattern_name="Redis session caching"
+)
+# Returns: {"health_score": 0.85, "recommendation": "Review pool config"}
+```
+
+### Benefits
+
+**For Dev-Nexus:**
+- Real production data enhances pattern intelligence
+- Pattern health tracking prevents bad patterns from spreading
+- Complete feedback loop from code to production
+
+**For Log-Attacker:**
+- Historical context enriches issue reports
+- Pattern recognition improves root cause analysis
+- Cross-repository learning (avoid mistakes others made)
+
+**For Orchestrator:**
+- Health data informs dependency update decisions
+- Avoids propagating problematic patterns
+- Prioritizes updates based on production stability
+
+**For Developers:**
+- Issues come with historical context and solutions
+- Learn from production failures across all repos
+- Proactive warnings about pattern problems
+
+### Detailed Documentation
+
+See [INTEGRATION_LOG_ATTACKER.md](INTEGRATION_LOG_ATTACKER.md) for:
+- Complete integration assessment (⭐⭐⭐⭐⭐ rating)
+- 3-phase implementation plan (3 weeks)
+- Enhanced knowledge base schema
+- 3 detailed scenarios with timelines
+- Configuration and deployment guides
+
+### Implementation Status
+
+**Phase 1: Core Integration** ✅ COMPLETE
+- `add_runtime_issue` skill
+- `query_known_issues` skill
+- `get_pattern_health` skill
+- Runtime issue tracking in KB
+- Integration client code examples
+
+**Phase 2: Smart Correlation** (Week 2)
+- Pattern-runtime correlation
+- Historical data integration
+- Trend analysis
+
+**Phase 3: Proactive Monitoring** (Week 3)
+- Deployment notifications
+- Enhanced monitoring after deploys
+- Automated health checks
 
 ---
 
