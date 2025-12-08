@@ -1,14 +1,13 @@
 """
-A2A Server - Pattern Discovery Agent
+A2A Server - Pattern Discovery Agent (Modular)
 
 FastAPI application serving the Pattern Discovery Agent via A2A protocol.
-Publishes AgentCard and handles A2A task execution.
+Uses modular skill architecture with dynamic skill registration.
 """
 
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -20,10 +19,18 @@ from github import Github
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from a2a.config import load_config, validate_config
-from a2a.auth import AuthConfig, AuthMiddleware, verify_a2a_auth, is_skill_protected
+from a2a.auth import AuthConfig, AuthMiddleware, verify_a2a_auth
 from a2a.executor import PatternDiscoveryExecutor
+from a2a.registry import get_registry
 from core.knowledge_base import KnowledgeBaseManager
 from core.similarity_finder import SimilarityFinder
+from core.integration_service import IntegrationService
+
+# Import skill modules (they self-register)
+from a2a.skills.pattern_query import PatternQuerySkills
+from a2a.skills.repository_info import RepositoryInfoSkills
+from a2a.skills.knowledge_management import KnowledgeManagementSkills
+from a2a.skills.integration import IntegrationSkills
 
 # Load configuration
 config = load_config()
@@ -42,9 +49,30 @@ github_client = Github(config.github_token)
 # Initialize core services
 kb_manager = KnowledgeBaseManager(github_client, config.knowledge_base_repo)
 similarity_finder = SimilarityFinder()
+integration_service = IntegrationService()
 
-# Initialize executor
-executor = PatternDiscoveryExecutor(kb_manager, similarity_finder)
+# Initialize skill registry
+registry = get_registry()
+
+# Register all skills
+pattern_query_skills = PatternQuerySkills(kb_manager, similarity_finder)
+for skill in pattern_query_skills.get_skills():
+    registry.register(skill)
+
+repository_info_skills = RepositoryInfoSkills(kb_manager)
+for skill in repository_info_skills.get_skills():
+    registry.register(skill)
+
+knowledge_mgmt_skills = KnowledgeManagementSkills(kb_manager)
+for skill in knowledge_mgmt_skills.get_skills():
+    registry.register(skill)
+
+integration_skills = IntegrationSkills(integration_service)
+for skill in integration_skills.get_skills():
+    registry.register(skill)
+
+# Initialize executor with registry
+executor = PatternDiscoveryExecutor(registry)
 
 # Initialize auth config
 auth_config = AuthConfig()
@@ -74,7 +102,7 @@ async def get_agent_card():
     """
     Publish AgentCard at well-known location
 
-    Returns AgentCard with skill definitions and metadata.
+    Returns AgentCard with dynamically generated skill definitions from registry.
     """
     agent_card = {
         "name": "pattern_discovery_agent",
@@ -86,239 +114,7 @@ async def get_agent_card():
             "multimodal": False,
             "authentication": "optional"
         },
-        "skills": [
-            {
-                "id": "query_patterns",
-                "name": "Query Similar Patterns",
-                "description": "Search for similar architectural patterns across all repositories in the knowledge base",
-                "tags": ["search", "patterns", "similarity"],
-                "requires_authentication": False,
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "keywords": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Keywords to search for (e.g., ['retry', 'exponential backoff'])"
-                        },
-                        "patterns": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Specific pattern names to match"
-                        },
-                        "min_matches": {
-                            "type": "integer",
-                            "description": "Minimum number of matches required",
-                            "default": 1
-                        }
-                    }
-                },
-                "examples": [
-                    {
-                        "input": {"keywords": ["retry", "exponential backoff"]},
-                        "description": "Find repositories using retry logic with exponential backoff"
-                    }
-                ]
-            },
-            {
-                "id": "get_deployment_info",
-                "name": "Get Deployment Information",
-                "description": "Retrieve deployment scripts, infrastructure details, and lessons learned for a specific repository",
-                "tags": ["deployment", "infrastructure", "devops"],
-                "requires_authentication": False,
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "repository": {
-                            "type": "string",
-                            "description": "Repository name in format 'owner/repo'"
-                        },
-                        "include_lessons": {
-                            "type": "boolean",
-                            "description": "Include lessons learned",
-                            "default": True
-                        },
-                        "include_history": {
-                            "type": "boolean",
-                            "description": "Include pattern history",
-                            "default": False
-                        }
-                    },
-                    "required": ["repository"]
-                },
-                "examples": [
-                    {
-                        "input": {"repository": "patelmm79/my-api", "include_lessons": True},
-                        "description": "Get deployment info and lessons for my-api repository"
-                    }
-                ]
-            },
-            {
-                "id": "add_lesson_learned",
-                "name": "Add Lesson Learned",
-                "description": "Manually record a lesson learned or deployment insight for a repository",
-                "tags": ["knowledge", "documentation", "lessons"],
-                "requires_authentication": True,
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "repository": {
-                            "type": "string",
-                            "description": "Repository name in format 'owner/repo'"
-                        },
-                        "category": {
-                            "type": "string",
-                            "enum": ["performance", "security", "reliability", "cost", "observability"],
-                            "description": "Lesson category"
-                        },
-                        "lesson": {
-                            "type": "string",
-                            "description": "The lesson learned (clear, actionable statement)"
-                        },
-                        "context": {
-                            "type": "string",
-                            "description": "Context or background for this lesson"
-                        },
-                        "severity": {
-                            "type": "string",
-                            "enum": ["info", "warning", "critical"],
-                            "default": "info"
-                        },
-                        "recorded_by": {
-                            "type": "string",
-                            "description": "Who recorded this lesson (optional)"
-                        }
-                    },
-                    "required": ["repository", "category", "lesson", "context"]
-                },
-                "examples": [
-                    {
-                        "input": {
-                            "repository": "patelmm79/api-client",
-                            "category": "performance",
-                            "lesson": "Always use connection pooling for HTTP clients",
-                            "context": "Experienced socket exhaustion under high load",
-                            "severity": "warning"
-                        },
-                        "description": "Record a performance lesson learned"
-                    }
-                ]
-            },
-            {
-                "id": "get_repository_list",
-                "name": "Get Repository List",
-                "description": "Get list of all tracked repositories with optional metadata",
-                "tags": ["repositories", "list", "metadata"],
-                "requires_authentication": False,
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "include_metadata": {
-                            "type": "boolean",
-                            "description": "Include pattern counts and last updated timestamps",
-                            "default": True
-                        }
-                    }
-                },
-                "examples": [
-                    {
-                        "input": {"include_metadata": True},
-                        "description": "Get all repositories with metadata"
-                    }
-                ]
-            },
-            {
-                "id": "get_cross_repo_patterns",
-                "name": "Get Cross-Repository Patterns",
-                "description": "Find patterns that exist across multiple repositories, useful for identifying common architectural decisions",
-                "tags": ["patterns", "cross-repo", "analysis"],
-                "requires_authentication": False,
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "min_repos": {
-                            "type": "integer",
-                            "description": "Minimum number of repositories a pattern must appear in",
-                            "default": 2
-                        },
-                        "pattern_type": {
-                            "type": "string",
-                            "description": "Filter by pattern type (optional)"
-                        }
-                    }
-                },
-                "examples": [
-                    {
-                        "input": {"min_repos": 3},
-                        "description": "Find patterns used in 3 or more repositories"
-                    }
-                ]
-            },
-            {
-                "id": "update_dependency_info",
-                "name": "Update Dependency Information",
-                "description": "Update dependency graph for a repository - consumers, derivatives, and external dependencies",
-                "tags": ["dependencies", "graph", "orchestration"],
-                "requires_authentication": True,
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "repository": {
-                            "type": "string",
-                            "description": "Repository name in format 'owner/repo'"
-                        },
-                        "dependency_info": {
-                            "type": "object",
-                            "description": "Dependency information",
-                            "properties": {
-                                "consumers": {
-                                    "type": "array",
-                                    "description": "List of repositories that depend on this one"
-                                },
-                                "derivatives": {
-                                    "type": "array",
-                                    "description": "List of forks or derivatives"
-                                },
-                                "external_dependencies": {
-                                    "type": "array",
-                                    "description": "List of external dependencies"
-                                }
-                            }
-                        }
-                    },
-                    "required": ["repository", "dependency_info"]
-                },
-                "examples": [
-                    {
-                        "input": {
-                            "repository": "patelmm79/shared-lib",
-                            "dependency_info": {
-                                "consumers": [{"repository": "patelmm79/api-service", "relationship": "imports"}],
-                                "external_dependencies": ["requests", "pydantic"]
-                            }
-                        },
-                        "description": "Update dependency information for shared library"
-                    }
-                ]
-            },
-            {
-                "id": "health_check_external",
-                "name": "Check External Agent Health",
-                "description": "Check health status of external A2A agents (dependency-orchestrator, pattern-miner)",
-                "tags": ["health", "monitoring", "agents"],
-                "requires_authentication": False,
-                "input_schema": {
-                    "type": "object",
-                    "properties": {}
-                },
-                "examples": [
-                    {
-                        "input": {},
-                        "description": "Check health of all external agents"
-                    }
-                ]
-            }
-        ],
+        "skills": registry.to_agent_card_skills(),  # Dynamic skill generation
         "metadata": {
             "repository": "patelmm79/dev-nexus",
             "documentation": "https://github.com/patelmm79/dev-nexus#readme",
@@ -327,7 +123,9 @@ async def get_agent_card():
             "external_agents": {
                 "dependency_orchestrator": "Coordinates dependency updates and impact analysis",
                 "pattern_miner": "Deep pattern extraction and code comparison"
-            }
+            },
+            "architecture": "modular",
+            "skill_count": len(registry)
         }
     }
 
@@ -339,7 +137,7 @@ async def execute_task(request: Request):
     """
     Handle A2A task execution
 
-    Routes requests to appropriate skill handlers based on skill_id.
+    Routes requests to appropriate skill handlers via registry.
     """
     try:
         body = await request.json()
@@ -353,7 +151,7 @@ async def execute_task(request: Request):
             )
 
         # Check authentication for protected skills
-        if is_skill_protected(skill_id):
+        if registry.is_protected(skill_id):
             auth_header = request.headers.get("Authorization")
             if not verify_a2a_auth(auth_header, auth_config):
                 return JSONResponse(
@@ -365,7 +163,7 @@ async def execute_task(request: Request):
                     }
                 )
 
-        # Execute skill
+        # Execute skill via executor (which delegates to registry)
         result = await executor.execute(skill_id, input_data)
 
         return JSONResponse(content=result)
@@ -411,7 +209,9 @@ async def health_check():
         "status": "healthy",
         "service": "pattern-discovery-agent",
         "version": "2.0.0",
-        "knowledge_base_repo": config.knowledge_base_repo
+        "knowledge_base_repo": config.knowledge_base_repo,
+        "skills_registered": len(registry),
+        "skills": registry.get_skill_ids()
     }
 
 
@@ -423,6 +223,7 @@ async def root():
     return {
         "service": "Pattern Discovery Agent A2A Server",
         "version": "2.0.0",
+        "architecture": "modular",
         "agent_card": f"{config.agent_url}/.well-known/agent.json",
         "health": f"{config.agent_url}/health",
         "endpoints": {
@@ -430,7 +231,9 @@ async def root():
             "cancel": "/a2a/cancel",
             "agent_card": "/.well-known/agent.json",
             "health": "/health"
-        }
+        },
+        "skills_registered": len(registry),
+        "skills": registry.get_skill_ids()
     }
 
 
@@ -441,4 +244,6 @@ if __name__ == "__main__":
     print(f"Starting Pattern Discovery Agent A2A Server on port {port}")
     print(f"AgentCard: http://localhost:{port}/.well-known/agent.json")
     print(f"Health: http://localhost:{port}/health")
+    print(f"Skills registered: {len(registry)}")
+    print(f"Skills: {', '.join(registry.get_skill_ids())}")
     uvicorn.run(app, host="0.0.0.0", port=port)

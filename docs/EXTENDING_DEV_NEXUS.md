@@ -1,10 +1,16 @@
 # Extending Dev-Nexus: Adding New Agents and Skills
 
+> **📢 UPDATED**: This guide has been updated to reflect the new **modular architecture** (v2.0).
+> The system now uses a plugin-style architecture with skills in separate modules.
+> See [REFACTORING_COMPLETE.md](./REFACTORING_COMPLETE.md) for migration details.
+
 ## Overview
 
-This guide explains how to extend the dev-nexus Pattern Discovery Agent System with new functionality. There are two primary approaches:
+This guide explains how to extend the dev-nexus Pattern Discovery Agent System with new functionality. The system now uses a **modular architecture** where skills are self-contained modules that auto-register.
 
-1. **Adding Skills to the Existing A2A Server** - Extend the current agent with new capabilities
+There are two primary approaches:
+
+1. **Adding Skills to the Existing A2A Server** - Extend the current agent with new capabilities (EASIER with new architecture!)
 2. **Creating Standalone Agents** - Build new independent agents that coordinate with dev-nexus
 
 ## Table of Contents
@@ -19,27 +25,43 @@ This guide explains how to extend the dev-nexus Pattern Discovery Agent System w
 
 ## Architecture Overview
 
-### Current System Components
+### Current System Components (Modular v2.0)
 
 ```
 dev-nexus/
 ├── a2a/
-│   ├── server.py          # FastAPI app with AgentCard
-│   ├── executor.py        # Skill routing and execution
-│   ├── client.py          # A2A client for external agents
-│   ├── auth.py            # Authentication middleware
-│   └── config.py          # Configuration management
+│   ├── server.py (250 lines) # FastAPI app with dynamic AgentCard
+│   ├── executor.py (74 lines) # Thin coordinator (delegates to registry)
+│   ├── registry.py           # NEW: Skill discovery and routing
+│   ├── skills/              # NEW: Modular skill modules
+│   │   ├── base.py          # BaseSkill interface
+│   │   ├── pattern_query.py         # Query patterns skills
+│   │   ├── repository_info.py       # Repository info skills
+│   │   ├── knowledge_management.py  # Knowledge base skills
+│   │   └── integration.py           # External agent integration
+│   ├── client.py            # A2A client for external agents
+│   ├── auth.py              # Authentication middleware
+│   └── config.py            # Configuration management
 ├── core/
 │   ├── pattern_extractor.py      # Claude API pattern extraction
 │   ├── knowledge_base.py          # GitHub storage operations
 │   ├── similarity_finder.py      # Pattern matching
-│   └── integration_service.py    # External agent coordination
+│   ├── integration_service.py    # External agent coordination
+│   └── documentation_service.py  # NEW: Documentation review
 ├── schemas/
 │   ├── knowledge_base_v2.py      # Pydantic data models
 │   └── migration.py              # Schema migration
 └── scripts/
     └── pattern_analyzer.py       # GitHub Actions CLI mode
 ```
+
+**Key Changes in v2.0**:
+- ✅ Skills are now in separate modules (`a2a/skills/`)
+- ✅ Executor reduced from 484 → 74 lines (85% reduction)
+- ✅ Server reduced from 445 → 250 lines (44% reduction)
+- ✅ Dynamic AgentCard generation from registry
+- ✅ Skills auto-register on import
+- ✅ Adding skill = create one file (not edit 2-3 files)
 
 ### Key Concepts
 
