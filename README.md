@@ -2,6 +2,99 @@
 
 > Automated architectural consistency and pattern discovery across your GitHub repositories
 
+## Overview
+
+Dev-Nexus is an automated pattern discovery agent that acts as your institutional memory across GitHub repositories. It uses Claude AI to detect architectural patterns, find code similarities, and maintain consistency as your projects scale.
+
+**Key capabilities:**
+- Automatic pattern extraction from every commit
+- Cross-repository similarity detection
+- Centralized knowledge base management
+- Agent-to-Agent (A2A) protocol support
+- Real-time notifications for pattern matches
+
+## Installation
+
+### Prerequisites
+
+- Python 3.11 or higher
+- GitHub account with repository access
+- Anthropic API key ([get one here](https://console.anthropic.com))
+- (Optional) Discord/Slack webhook for notifications
+
+### Quick Install
+
+```bash
+# Clone the repository
+git clone https://github.com/patelmm79/dev-nexus.git
+cd dev-nexus
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your credentials
+
+# Test the installation
+python scripts/pattern_analyzer.py --help
+```
+
+### For Monitoring Other Repositories
+
+No installation required in monitored repos! Just add a small workflow file:
+
+```bash
+mkdir -p .github/workflows
+# See Quick Start section below for workflow configuration
+```
+
+## Usage
+
+### Basic Usage - GitHub Actions (Recommended)
+
+Add pattern monitoring to any repository with a single workflow file:
+
+```yaml
+name: Pattern Monitoring
+on:
+  push:
+    branches: [main, master, develop]
+jobs:
+  analyze-patterns:
+    uses: patelmm79/dev-nexus/.github/workflows/analyze-reusable.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      KNOWLEDGE_BASE_REPO: ${{ secrets.KNOWLEDGE_BASE_REPO }}
+```
+
+### Usage - A2A Server
+
+Deploy as a 24/7 service for agent-to-agent communication:
+
+```bash
+# Run locally
+bash scripts/dev-server.sh
+
+# Deploy to Cloud Run
+export GCP_PROJECT_ID="your-project-id"
+bash scripts/deploy.sh
+```
+
+### Usage - Manual Analysis
+
+Run pattern analysis locally:
+
+```bash
+export ANTHROPIC_API_KEY="your-key"
+export GITHUB_TOKEN="your-token"
+export KNOWLEDGE_BASE_REPO="username/dev-nexus"
+
+python scripts/pattern_analyzer.py
+```
+
+See [QUICK_START.md](QUICK_START.md) for detailed setup instructions.
+
 ## 🎯 What This Solves
 
 When building multiple projects with AI assistance, you face:
@@ -34,7 +127,7 @@ This system acts as your **automated institutional memory**, watching your commi
 
 ### Core Components
 
-1. **Reusable GitHub Workflow** (`.github/workflows/main.yml`)
+1. **Reusable GitHub Workflow** (`.github/workflows/analyze-reusable.yml`)
    - Called from monitored repositories
    - No file copying required - automatically pulls latest code
    - Triggers on push/PR events
@@ -120,7 +213,7 @@ on:
 
 jobs:
   analyze-patterns:
-    uses: patelmm79/dev-nexus/.github/workflows/main.yml@main
+    uses: patelmm79/dev-nexus/.github/workflows/analyze-reusable.yml@main
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -387,30 +480,89 @@ curl -X POST https://your-service.run.app/a2a/execute \
 
 **AgentCard**: Published at `/.well-known/agent.json` for discovery
 
-### Bidirectional A2A Communication
+### 🔗 Integration with Other AI Agents
 
-Dev-nexus acts as the **central hub** for coordinating with external A2A agents:
+Dev-Nexus acts as the **central pattern intelligence hub** in a distributed system of AI agents:
 
-#### External Agents
+```
+                    ┌────────────────────────┐
+                    │   GitHub Repositories   │
+                    │   Repo A, B, C, D...    │
+                    └───────────┬─────────────┘
+                                │
+                    ┌───────────▼──────────────┐
+                    │      DEV-NEXUS           │
+                    │  Pattern Discovery Agent │
+                    │                          │
+                    │  • Pattern Extraction    │
+                    │  • Knowledge Base (v2)   │
+                    │  • 9 A2A Skills          │
+                    └────┬──────────────┬──────┘
+                         │              │
+        ┌────────────────┴──┐      ┌───┴────────────────┐
+        │                   │      │                    │
+        ▼                   ▼      ▼                    ▼
+┌──────────────────┐  ┌─────────────────┐  ┌──────────────────┐
+│ DEPENDENCY-      │  │ PATTERN-MINER   │  │ Future Agents    │
+│ ORCHESTRATOR     │  │                 │  │                  │
+│                  │  │ • Deep Analysis │  │ • Testing        │
+│ • Triage Agent   │  │ • Code Compare  │  │ • Security       │
+│ • Impact Analysis│  │ • Best Practices│  │ • Performance    │
+│ • Auto PRs       │  └─────────────────┘  └──────────────────┘
+└──────────────────┘
+        │
+        └──> Creates PRs, Updates Dependents, Records Lessons
+```
 
-**dependency-orchestrator**: Manages dependency relationships and impact analysis
-- Receives pattern change notifications from dev-nexus
-- Provides dependency graph information
-- Triages which repos need updates when dependencies change
+#### Integration with dependency-orchestrator
 
-**pattern-miner**: Deep pattern extraction and code comparison
-- Performs detailed pattern analysis on request
-- Compares implementations across repositories
-- Provides pattern recommendations
+**Purpose**: Automated dependency management and update coordination
 
-#### Additional Skills (7 total)
+**How it works:**
+1. Dev-Nexus detects pattern/API changes → Notifies orchestrator
+2. Orchestrator queries dev-nexus for dependency graph
+3. AI triage agent analyzes impact and creates PRs
+4. Results recorded back in dev-nexus as lessons learned
 
-Beyond the core 3 skills, dev-nexus exposes 4 additional skills for agent coordination:
+**Real Example:**
+```
+Your API library update → Dev-Nexus detects breaking change
+                       ↓
+         Orchestrator finds 3 dependent repos
+                       ↓
+     Auto-creates PRs with context from dev-nexus
+                       ↓
+        Updates propagate in minutes, not days!
+```
 
-1. **get_repository_list** (Public) - List all tracked repositories
-2. **get_cross_repo_patterns** (Public) - Find patterns used across multiple repos
-3. **update_dependency_info** (Authenticated) - Update dependency graphs
-4. **health_check_external** (Public) - Check health of external agents
+**See [INTEGRATION.md](INTEGRATION.md) for complete integration guide with detailed diagrams and examples.**
+
+#### Integration with pattern-miner
+
+**Purpose**: Deep code analysis and pattern comparison
+
+**Capabilities:**
+- Line-by-line implementation comparison
+- Pattern quality scoring
+- Anti-pattern detection
+- Best practice recommendations
+
+#### Available Skills for Integration
+
+Dev-Nexus exposes 9 skills via A2A protocol:
+
+**Public Skills (No auth):**
+1. `query_patterns` - Search patterns
+2. `get_deployment_info` - Get deployment metadata
+3. `get_repository_list` - List tracked repos
+4. `get_cross_repo_patterns` - Find patterns across repos
+5. `health_check_external` - Check external agent health
+6. `check_documentation_standards` - Check doc conformity
+7. `validate_documentation_update` - Validate doc updates
+
+**Authenticated Skills:**
+8. `add_lesson_learned` - Record lessons
+9. `update_dependency_info` - Update dependency graphs
 
 #### Configuration
 

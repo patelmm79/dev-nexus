@@ -80,7 +80,7 @@ The system now operates in two modes:
    - Independently testable
    - `pattern_query.py` - Pattern search skills
    - `repository_info.py` - Repository information skills
-   - `knowledge_management.py` - KB update skills (authenticated)
+   - `a2a/skills/knowledge_management.py` - KB update skills (authenticated)
    - `integration.py` - External agent coordination
    - `documentation_standards.py` - **NEW** Documentation standards compliance checking
    - Adding new skill = create one file (not edit multiple files)
@@ -88,9 +88,9 @@ The system now operates in two modes:
 5. **Core Modules** (`core/`)
    - `pattern_extractor.py` - Pattern extraction with Claude
    - `knowledge_base.py` - KB CRUD with v2 schema and auto-migration
-   - `similarity_finder.py` - Enhanced similarity detection
+   - `core/similarity_finder.py` - Enhanced similarity detection
    - `integration_service.py` - Bidirectional A2A coordination with external agents
-   - `documentation_standards_checker.py` - **NEW** Documentation standards compliance checker
+   - `core/documentation_standards_checker.py` - **NEW** Documentation standards compliance checker
    - Shared by both GitHub Actions CLI and A2A server
 
 5. **Enhanced Knowledge Base v2** (`schemas/`) **NEW**
@@ -107,7 +107,7 @@ The system now operates in two modes:
 
 ### Data Flow
 
-```
+```text
 Monitored Project (Push) → Calls Reusable Workflow → Pattern Analyzer → Claude API
                                                             ↓
                                                      Extract Patterns
@@ -120,6 +120,71 @@ Monitored Project (Push) → Calls Reusable Workflow → Pattern Analyzer → Cl
                                                             ↓
                                                (Optional) External Orchestrator
 ```
+
+### Integration Architecture
+
+Dev-Nexus integrates with external AI agents to provide comprehensive project management:
+
+**Integration Partners:**
+
+1. **dependency-orchestrator** ([GitHub](https://github.com/patelmm79/dependency-orchestrator))
+   - **Role**: Dependency management and impact analysis
+   - **Communication**: Bidirectional A2A protocol
+   - **Key Functions**:
+     - Receives pattern change notifications from dev-nexus
+     - Queries dev-nexus for dependency graphs and patterns
+     - Creates automated PRs for dependent repositories
+     - Records update outcomes as lessons learned in dev-nexus
+   - **Integration Point**: `core/integration_service.py`
+
+2. **pattern-miner** (Future)
+   - **Role**: Deep code analysis and pattern comparison
+   - **Communication**: Request-response via A2A
+   - **Key Functions**:
+     - Performs detailed code comparison
+     - Provides implementation recommendations
+     - Tracks pattern evolution over time
+
+**Integration Data Flow:**
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    Pattern Change Event                         │
+└─────────────────────────────────────────────────────────────────┘
+
+  Dev-Nexus                    dependency-orchestrator
+      │                                  │
+      │ 1. Detect pattern change         │
+      │    (e.g., API update)            │
+      │                                  │
+      │ 2. Notify orchestrator           │
+      ├─────────────────────────────────>│
+      │    POST /a2a/execute             │
+      │    skill: notify_pattern_change  │
+      │                                  │
+      │                                  │ 3. Query dependencies
+      │ 4. Request dependency graph      │
+      │<─────────────────────────────────┤
+      │    POST /a2a/execute             │
+      │    skill: query_patterns         │
+      │                                  │
+      │ 5. Return consumers & patterns   │
+      ├─────────────────────────────────>│
+      │                                  │
+      │                                  │ 6. Analyze impact
+      │                                  │    Create PRs
+      │                                  │
+      │ 7. Record lesson learned         │
+      │<─────────────────────────────────┤
+      │    POST /a2a/execute             │
+      │    skill: add_lesson_learned     │
+      │                                  │
+      │ 8. Confirm lesson stored         │
+      ├─────────────────────────────────>│
+      │                                  │
+```
+
+**See [INTEGRATION.md](INTEGRATION.md) for complete integration documentation with detailed examples.**
 
 ### Reusable Workflow Architecture
 
