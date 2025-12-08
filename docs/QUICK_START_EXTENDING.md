@@ -1,13 +1,16 @@
-# Quick Start: Extending Dev-Nexus
+# Quick Start: Extending Dev-Nexus (Modular v2.0)
 
-This quick start guide helps you add new functionality to dev-nexus in 15 minutes or less.
+> **📢 UPDATED for v2.0**: This guide now uses the **modular architecture**.
+> Skills are now separate files that auto-register - much simpler!
+
+This quick start guide helps you add new functionality to dev-nexus in 10 minutes or less.
 
 ## What You'll Learn
 
-- How to add a new skill to the A2A server
+- How to add a new skill using the modular architecture
 - Where to put business logic
+- How skills auto-register
 - How to test your changes
-- How to deploy
 
 ## Prerequisites
 
@@ -19,84 +22,107 @@ This quick start guide helps you add new functionality to dev-nexus in 15 minute
   - `GITHUB_TOKEN`
   - `KNOWLEDGE_BASE_REPO`
 
-## 5-Minute Skill Addition
+## 5-Minute Skill Addition (New Modular Way!)
 
-### 1. Define Your Skill (2 minutes)
+### 1. Create Your Skill Module (3 minutes)
 
-Edit `a2a/server.py` and add to the `skills` array around line 321:
-
-```python
-{
-    "id": "my_skill",
-    "name": "My Skill Name",
-    "description": "What my skill does",
-    "tags": ["tag1", "tag2"],
-    "requires_authentication": False,
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "input_param": {
-                "type": "string",
-                "description": "What this parameter does"
-            }
-        },
-        "required": ["input_param"]
-    },
-    "examples": [
-        {
-            "input": {"input_param": "example"},
-            "description": "Example description"
-        }
-    ]
-}
-```
-
-### 2. Add Handler Method (2 minutes)
-
-Add to `a2a/executor.py` in the `PatternDiscoveryExecutor` class:
+Create `a2a/skills/my_skill.py`:
 
 ```python
-async def _handle_my_skill(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-    """My skill description"""
-    try:
-        input_param = input_data.get('input_param')
+"""My Skill Module"""
 
-        if not input_param:
-            return {"error": "Missing required parameter: 'input_param'"}
+from typing import Dict, Any, List
+from a2a.skills.base import BaseSkill
 
-        # Your logic here
-        result = f"Processed: {input_param}"
+class MySkill(BaseSkill):
+    """My custom skill description"""
 
+    def __init__(self, kb_manager):
+        self.kb_manager = kb_manager
+
+    @property
+    def skill_id(self) -> str:
+        return "my_skill"
+
+    @property
+    def skill_name(self) -> str:
+        return "My Skill Name"
+
+    @property
+    def skill_description(self) -> str:
+        return "What my skill does"
+
+    @property
+    def tags(self) -> List[str]:
+        return ["tag1", "tag2"]
+
+    @property
+    def requires_authentication(self) -> bool:
+        return False  # Set True if skill modifies data
+
+    @property
+    def input_schema(self) -> Dict[str, Any]:
         return {
-            "success": True,
-            "result": result
+            "type": "object",
+            "properties": {
+                "input_param": {
+                    "type": "string",
+                    "description": "What this parameter does"
+                }
+            },
+            "required": ["input_param"]
         }
 
-    except Exception as e:
-        return {"error": f"Failed: {str(e)}"}
+    @property
+    def examples(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "input": {"input_param": "example"},
+                "description": "Example description"
+            }
+        ]
+
+    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute the skill"""
+        try:
+            input_param = input_data.get('input_param')
+
+            if not input_param:
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: 'input_param'"
+                }
+
+            # Your logic here
+            result = f"Processed: {input_param}"
+
+            return {
+                "success": True,
+                "result": result
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed: {str(e)}"
+            }
 ```
 
-### 3. Add Routing (1 minute)
+### 2. Register in Server (1 minute)
 
-In `execute()` method of `executor.py`, add:
+Edit `a2a/server.py` and add these 3 lines after the other skill imports (around line 72):
 
 ```python
-elif skill_id == "my_skill":
-    return await self._handle_my_skill(input_data)
+from a2a.skills.my_skill import MySkill
+
+# ... after other skill registrations (around line 72) ...
+my_skill = MySkill(kb_manager)
+registry.register(my_skill)
 ```
 
-And add to the error message list:
+### 3. Test It! (1 minute)
 
-```python
-"available_skills": [
-    "query_patterns", "get_deployment_info", "add_lesson_learned",
-    "get_repository_list", "get_cross_repo_patterns",
-    "update_dependency_info", "health_check_external",
-    "my_skill"  # Add here
-]
-```
-
-### 4. Test It! (30 seconds)
+**That's it!** No routing changes needed, no executor edits - the registry handles everything!
 
 ```bash
 # Start server

@@ -52,8 +52,11 @@ The system now operates in two modes:
    - Sends notifications via Discord/Slack webhooks
    - Can notify external orchestrator services (optional)
 
-3. **A2A Server** (`a2a/server.py`) **NEW**
+3. **A2A Server** (`a2a/server.py`) **MODULAR v2.0**
    - FastAPI application with A2A protocol endpoints
+   - **Modular Architecture**: Skills in separate, self-contained modules
+   - **Dynamic AgentCard**: Generated from skill registry (not hardcoded)
+   - **Thin Coordinator**: 250 lines (reduced from 445 lines)
    - Publishes AgentCard at `/.well-known/agent.json`
    - Seven skills for comprehensive agent coordination:
      - `query_patterns` (public) - Search for similar patterns
@@ -67,8 +70,20 @@ The system now operates in two modes:
    - Cloud Run deployment ready
    - Coordinates with dependency-orchestrator and pattern-miner
 
-4. **Core Modules** (`core/`) **NEW**
-   - `pattern_extractor.py` - Pattern extraction with Claude (refactored from pattern_analyzer.py)
+4. **Modular Skills** (`a2a/skills/`) **NEW in v2.0**
+   - **BaseSkill Interface**: Standard skill contract for consistency
+   - **SkillRegistry**: Dynamic skill discovery and routing
+   - **Self-contained modules**: Each skill in its own file
+   - Skills auto-register on import
+   - Independently testable
+   - `pattern_query.py` - Pattern search skills
+   - `repository_info.py` - Repository information skills
+   - `knowledge_management.py` - KB update skills (authenticated)
+   - `integration.py` - External agent coordination
+   - Adding new skill = create one file (not edit multiple files)
+
+5. **Core Modules** (`core/`)
+   - `pattern_extractor.py` - Pattern extraction with Claude
    - `knowledge_base.py` - KB CRUD with v2 schema and auto-migration
    - `similarity_finder.py` - Enhanced similarity detection
    - `integration_service.py` - Bidirectional A2A coordination with external agents
