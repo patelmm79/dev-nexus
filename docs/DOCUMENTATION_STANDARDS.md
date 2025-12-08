@@ -107,6 +107,7 @@ Documentation must include:
 - Define jargon on first use
 - Break complex topics into steps
 - Use visual aids (diagrams, tables, examples)
+- Be specific and complete in giving instructions
 
 **Clarity test**: Can a new contributor follow this without asking questions?
 
@@ -122,6 +123,10 @@ Documentation must include:
 > **📢 UPDATED for v2.0**: This guide now uses the modular architecture.
 > See MIGRATION_GUIDE.md if upgrading from v1.0.
 ```
+### 6. Organized for end users first.
+- **Prioritise for consumption by end user persona**: main purpose of primary documents is to help the end user use the tools.  The next priority is to help the end user to deploy the tool.
+- **Clear separation of concerns**: Technical details for developers should be separated into specific techical documents.
+- **Table of contents**: Have a table of contents at the top of long documents, particularly README.md
 
 ---
 
