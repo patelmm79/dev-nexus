@@ -1,6 +1,35 @@
 ﻿# Dev-Nexus: Pattern Discovery Agent
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 > Automated architectural consistency and pattern discovery across your GitHub repositories
+
+---
+
+## 📚 Table of Contents
+
+### Quick Links
+- **[🚀 Quick Start](#-quick-start)** - Get started in 5 minutes
+- **[☁️ Cloud Deployment](#️-deployment-to-cloud-run)** - Deploy to Google Cloud Run
+- **[📖 Documentation Index](#-documentation-index)** - Complete documentation guide
+
+### Main Sections
+1. [Overview](#overview)
+2. [What This Solves](#-what-this-solves)
+3. [Installation](#installation)
+4. [Usage](#usage)
+5. [What's Included](#-whats-included)
+6. [Quick Start](#-quick-start)
+7. [Deployment to Cloud Run](#️-deployment-to-cloud-run)
+8. [Dashboard Usage](#-dashboard-usage)
+9. [Configuration](#-configuration)
+10. [A2A Integration](#-a2a-integration)
+11. [Cost Estimation](#-cost-estimation)
+12. [Troubleshooting](#-troubleshooting)
+13. [Documentation Index](#-documentation-index)
+14. [License](#-license)
+
+---
 
 ## Overview
 
@@ -229,25 +258,26 @@ git push
 
 **That's it!** The workflow automatically pulls the latest analyzer from this repo.
 
-### 4. (Optional) Deploy A2A Server
+### 4. (Optional) Deploy A2A Server to Cloud Run
 
-Enable agent-to-agent communication for programmatic access:
+Enable 24/7 agent-to-agent communication by deploying to Google Cloud Run:
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Test locally
-cp .env.example .env  # Add your credentials
-bash scripts/dev-server.sh
-
-# Deploy to Cloud Run
+# Quick deployment (3 commands)
 export GCP_PROJECT_ID="your-project-id"
 bash scripts/setup-secrets.sh
 bash scripts/deploy.sh
 ```
 
-**See [A2A_QUICKSTART.md](A2A_QUICKSTART.md) for complete A2A setup and usage.**
+**📖 Complete Deployment Guide:** See **[DEPLOYMENT.md](DEPLOYMENT.md)** for:
+- Detailed step-by-step instructions
+- Prerequisites and setup
+- Configuration options
+- Monitoring and troubleshooting
+- Production checklist
+- Cost optimization
+
+**🔧 Local Development:** See [A2A_QUICKSTART.md](A2A_QUICKSTART.md) for local testing and A2A protocol usage.
 
 ### 5. Watch It Work
 
@@ -615,31 +645,95 @@ When pattern analysis completes, dev-nexus automatically:
 - [ ] Custom notification templates
 - [ ] Learning from user feedback
 
+## ☁️ Deployment to Cloud Run
+
+Deploy dev-nexus as a 24/7 A2A service on Google Cloud Run:
+
+### Quick Deployment
+
+```bash
+# 1. Set up GCP project
+export GCP_PROJECT_ID="your-project-id"
+export GCP_REGION="us-central1"
+
+# 2. Set up secrets
+export ANTHROPIC_API_KEY="sk-ant-xxxxx"
+export GITHUB_TOKEN="ghp_xxxxx"
+export KNOWLEDGE_BASE_REPO="username/repo"
+bash scripts/setup-secrets.sh
+
+# 3. Deploy
+bash scripts/deploy.sh
+
+# 4. Test
+SERVICE_URL=$(gcloud run services describe pattern-discovery-agent \
+  --region=$GCP_REGION --format="value(status.url)")
+curl $SERVICE_URL/health
+```
+
+### What You Get
+
+- **24/7 Availability:** Always-on A2A protocol endpoint
+- **Auto-scaling:** 0-10 instances based on traffic
+- **Secure:** Secrets managed by Google Secret Manager
+- **Monitored:** Built-in Cloud Monitoring integration
+- **Cost-effective:** Free tier covers most usage
+
+### Complete Documentation
+
+📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide with:
+- Prerequisites and API setup
+- Step-by-step deployment instructions
+- Configuration and scaling options
+- Monitoring and alerting setup
+- Troubleshooting common issues
+- Production readiness checklist
+- Cost optimization strategies
+
+📖 **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Comprehensive troubleshooting for:
+- Deployment failures
+- Runtime errors
+- Authentication issues
+- Performance problems
+- Integration debugging
+
+📖 **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design documentation
+
+📖 **[PRODUCTION_READY.md](PRODUCTION_READY.md)** - Production checklist
+
+---
+
 ## 🐛 Troubleshooting
 
-### Action fails immediately
+### Quick Fixes
+
+#### Action fails immediately
 **Check:** Secrets are set correctly (case-sensitive)
 
-### No notifications
+#### No notifications
 **Check:** Webhook URL is valid, test with curl:
 ```bash
 curl -X POST $DISCORD_WEBHOOK_URL -H "Content-Type: application/json" -d '{"content": "test"}'
 ```
 
-### Knowledge base not updating
-**Check:** 
+#### Knowledge base not updating
+**Check:**
 - `KNOWLEDGE_BASE_REPO` format is `username/repo`
 - GitHub token has `repo` scope
 - KB repo exists and is accessible
 
-### Too many false positives
+#### Too many false positives
 **Adjust:** Increase thresholds in `find_similar_patterns()`
 
-### Not enough detection
-**Adjust:** 
+#### Not enough detection
+**Adjust:**
 - Increase context in LLM prompts
 - Add more keywords to extraction
 - Lower similarity thresholds
+
+### Complete Troubleshooting
+
+📖 **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Comprehensive guide covering 50+ scenarios with diagnostic commands and solutions
 
 ## 💰 Cost Estimation
 
@@ -664,6 +758,75 @@ This is your personal system, but you can extend it:
 3. Build custom notification formatters
 4. Share your `knowledge_base.json` structure
 
+## 📖 Documentation Index
+
+### Getting Started
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[README.md](README.md)** | Project overview and quick start | Everyone |
+| **[QUICK_START.md](QUICK_START.md)** | Detailed setup instructions | New users |
+| **[CLAUDE.md](CLAUDE.md)** | AI assistant guidance | Claude Code |
+
+### Deployment & Operations
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Complete Cloud Run deployment guide | DevOps |
+| **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Comprehensive troubleshooting (50+ scenarios) | Operators |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System design and components | Architects |
+| **[PRODUCTION_READY.md](PRODUCTION_READY.md)** | Production readiness checklist | DevOps |
+
+### Integration & Development
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[INTEGRATION.md](INTEGRATION.md)** | Complete A2A integration guide | Developers |
+| **[INTEGRATION_LOG_ATTACKER.md](INTEGRATION_LOG_ATTACKER.md)** | Log attacker integration example | Developers |
+| **[API.md](API.md)** | API reference and endpoints | Developers |
+| **[AGENTCARD.md](AGENTCARD.md)** | AgentCard specification | Developers |
+| **[A2A_QUICKSTART.md](A2A_QUICKSTART.md)** | Local A2A development | Developers |
+
+### Extension & Contribution
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[EXTENDING_DEV_NEXUS.md](EXTENDING_DEV_NEXUS.md)** | How to add features and skills | Contributors |
+| **[docs/QUICK_START_EXTENDING.md](docs/QUICK_START_EXTENDING.md)** | Quick guide to adding skills | Contributors |
+| **[docs/DOCUMENTATION_STANDARDS.md](docs/DOCUMENTATION_STANDARDS.md)** | Documentation requirements | Contributors |
+| **[docs/LICENSE_STANDARD.md](docs/LICENSE_STANDARD.md)** | GPL v3 licensing standard | Contributors |
+| **[docs/LESSONS_LEARNED_ARCHITECTURE.md](docs/LESSONS_LEARNED_ARCHITECTURE.md)** | Architectural lessons learned | Architects |
+
+### Examples
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[examples/integration_scenarios.md](examples/integration_scenarios.md)** | Integration examples | Developers |
+| **[examples/add_documentation_review_skill.md](examples/add_documentation_review_skill.md)** | Adding new skills example | Developers |
+
+### Infrastructure
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[terraform/README.md](terraform/README.md)** | Terraform infrastructure guide | DevOps |
+| **[config/README.md](config/README.md)** | Configuration reference | Operators |
+
+### Quick Navigation by Task
+
+**"I want to deploy to Cloud Run"**
+→ [DEPLOYMENT.md](DEPLOYMENT.md)
+
+**"I want to integrate with another agent"**
+→ [INTEGRATION.md](INTEGRATION.md)
+
+**"Something is broken"**
+→ [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
+**"I want to add a new skill"**
+→ [EXTENDING_DEV_NEXUS.md](EXTENDING_DEV_NEXUS.md)
+
+**"I want to understand the architecture"**
+→ [ARCHITECTURE.md](ARCHITECTURE.md)
+
+**"I want to check documentation standards"**
+→ [docs/DOCUMENTATION_STANDARDS.md](docs/DOCUMENTATION_STANDARDS.md)
+
+---
+
 ## 📚 Related Resources
 
 - [Claude Prompt Engineering](https://docs.anthropic.com/claude/docs)
@@ -681,7 +844,19 @@ This system implements several concepts:
 
 ## 📝 License
 
-Use this however you want. It's your code and your architecture.
+This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).
+
+**What this means:**
+- ✅ **Free to use** for any purpose
+- ✅ **Free to modify** and create derivative works
+- ✅ **Free to distribute** copies
+- ⚠️ **Copyleft**: Derivative works must also be GPL-3.0
+- ✅ **Patent protection** for users
+- ✅ **Source code** must remain available
+
+See the [LICENSE](LICENSE) file for full details or visit [https://www.gnu.org/licenses/gpl-3.0](https://www.gnu.org/licenses/gpl-3.0).
+
+**Why GPL v3?** This ensures that all improvements and derivative works benefit the entire community and remain free software.
 
 ---
 

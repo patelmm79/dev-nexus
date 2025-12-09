@@ -123,10 +123,213 @@ Documentation must include:
 > **📢 UPDATED for v2.0**: This guide now uses the modular architecture.
 > See MIGRATION_GUIDE.md if upgrading from v1.0.
 ```
-### 6. Organized for end users first.
+
+### 6. Licensed Properly
+
+**All projects must include a LICENSE file with GNU General Public License v3.0 (GPL-3.0).**
+
+**Requirements:**
+- ✅ **LICENSE file** must exist in repository root
+- ✅ Must contain the full **GNU GPL v3.0** text
+- ✅ **README.md** must include GPL-3.0 badge
+- ✅ Source files should include license header where appropriate
+
+**Why GPL v3:**
+- Ensures software freedom (free as in freedom)
+- Copyleft protection (derivative works must be open source)
+- Patent protection for users
+- Compatible with other GPL projects
+- Aligns with project values of openness and collaboration
+
+**README Badge:**
+```markdown
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+```
+
+**Source File Header (optional but recommended):**
+```python
+# Copyright (C) 2025  Your Name
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+```
+
+**Non-Compliance:**
+- ❌ Missing LICENSE file
+- ❌ Wrong license (MIT, Apache, proprietary)
+- ❌ Modified GPL text (must be verbatim)
+- ❌ No license indication in README
+
+**License Checker:**
+The documentation standards checker will verify:
+1. LICENSE file exists
+2. Contains "GNU GENERAL PUBLIC LICENSE" and "Version 3"
+3. README includes GPL-3.0 badge or reference
+4. License is consistent across all documentation
+
+### 7. Organized for end users first.
 - **Prioritise for consumption by end user persona**: main purpose of primary documents is to help the end user use the tools.  The next priority is to help the end user to deploy the tool.
 - **Clear separation of concerns**: Technical details for developers should be separated into specific techical documents.
 - **Table of contents**: Have a table of contents at the top of long documents, particularly README.md
+
+### 8. Navigation and Findability
+
+**Users should be able to find information quickly without searching.**
+
+#### Required Navigation Elements
+
+**README.md must have:**
+- ✅ **Table of contents** at the top with quick links
+- ✅ **Documentation index** section near the end
+- ✅ **Task-based quick links** ("I want to deploy..." → link)
+- ✅ **Clear separation** between overview and detailed content
+- ✅ **Links to detailed guides** instead of including everything in README
+
+**Example TOC Structure:**
+```markdown
+## 📚 Table of Contents
+
+### Quick Links
+- **[🚀 Quick Start](#-quick-start)** - Get started in 5 minutes
+- **[☁️ Cloud Deployment](#️-deployment-to-cloud-run)** - Deploy to Cloud
+- **[📖 Documentation Index](#-documentation-index)** - All documentation
+
+### Main Sections
+1. [Overview](#overview)
+2. [Installation](#installation)
+...
+```
+
+**Documentation Index Section:**
+```markdown
+## 📖 Documentation Index
+
+### Quick Navigation by Task
+
+**"I want to deploy to Cloud Run"**
+→ [DEPLOYMENT.md](DEPLOYMENT.md)
+
+**"Something is broken"**
+→ [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
+### Getting Started
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[README.md](README.md)** | Project overview | Everyone |
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Deploy guide | DevOps |
+```
+
+#### DOCUMENTATION_INDEX.md
+
+**Required:** Create `DOCUMENTATION_INDEX.md` as central navigation hub
+
+**Must include:**
+- ✅ Complete list of all documentation files
+- ✅ Purpose and audience for each document
+- ✅ Task-based navigation ("I want to..." → docs)
+- ✅ Documentation by audience (DevOps, Developers, etc.)
+- ✅ Reading order for common workflows
+- ✅ Estimated time to complete tasks
+- ✅ Documentation metrics (total docs, coverage)
+
+**See:** [DOCUMENTATION_INDEX.md](../DOCUMENTATION_INDEX.md) for example
+
+#### Documentation Structure
+
+**Organize by concern:**
+
+**Root directory** (high-level, user-facing):
+- `README.md` - Overview and quick start
+- `DEPLOYMENT.md` - Production deployment
+- `TROUBLESHOOTING.md` - Problem solving
+- `INTEGRATION.md` - Integration guides
+- `API.md` - API reference
+
+**docs/ directory** (contributor-facing, standards):
+- `DOCUMENTATION_STANDARDS.md` - This file
+- `LICENSE_STANDARD.md` - Licensing requirements
+- `LESSONS_LEARNED_ARCHITECTURE.md` - Architectural lessons
+
+**examples/ directory** (learning by example):
+- Real-world examples
+- Step-by-step tutorials
+- Integration scenarios
+
+**terraform/ directory** (infrastructure):
+- Infrastructure as code
+- Deployment configurations
+
+#### Cross-Linking
+
+**Every document should link to related documents:**
+
+**Bad Example:**
+```markdown
+To deploy, you need to set up secrets first.
+```
+
+**Good Example:**
+```markdown
+To deploy, you need to set up secrets first. See the
+[Prerequisites](DEPLOYMENT.md#prerequisites) section
+of the Deployment Guide for instructions.
+```
+
+**Link patterns:**
+- Use descriptive link text (not "click here")
+- Link to specific sections when possible
+- Provide context for why user should follow link
+- Keep links up to date when files move
+
+#### Task-Based Organization
+
+**Organize content by user tasks, not system components:**
+
+**Bad: Component-based**
+```markdown
+## Server Component
+The server runs the API...
+
+## Database Component
+The database stores patterns...
+```
+
+**Good: Task-based**
+```markdown
+## Deploying to Production
+To deploy your service:
+1. Set up infrastructure (see DEPLOYMENT.md#prerequisites)
+2. Configure secrets (see DEPLOYMENT.md#secrets)
+3. Deploy container (see DEPLOYMENT.md#deployment)
+```
+
+#### Audience-Specific Paths
+
+**Provide clear paths for different audiences:**
+
+**For New Users:**
+1. README.md → Overview
+2. QUICK_START.md → Get started
+3. Examples → Learn by doing
+
+**For DevOps:**
+1. DEPLOYMENT.md → Deploy
+2. TROUBLESHOOTING.md → Fix issues
+3. PRODUCTION_READY.md → Go live
+
+**For Developers:**
+1. ARCHITECTURE.md → Understand system
+2. EXTENDING_DEV_NEXUS.md → Add features
+3. API.md → API reference
+
+**Document these paths clearly in DOCUMENTATION_INDEX.md**
 
 ---
 
@@ -405,12 +608,28 @@ Use this for documentation review:
 - [ ] Clear (easy to understand)
 - [ ] Consistent (matches other docs)
 
-### Structure
+### Licensing
+- [ ] LICENSE file exists in repository root
+- [ ] LICENSE contains full GNU GPL v3.0 text
+- [ ] README.md includes GPL-3.0 badge
+- [ ] License is mentioned in documentation
+
+### Navigation & Structure
+- [ ] README.md has table of contents at top
+- [ ] README.md has Documentation Index section
+- [ ] README.md has task-based quick links
+- [ ] DOCUMENTATION_INDEX.md exists and is current
 - [ ] Proper headings hierarchy
-- [ ] Table of contents (if long)
 - [ ] Prerequisites section
 - [ ] Examples section
 - [ ] Troubleshooting section
+
+### Cross-Linking
+- [ ] Links to related documents
+- [ ] Descriptive link text (not "click here")
+- [ ] Links to specific sections when useful
+- [ ] All internal links work
+- [ ] All external links work
 
 ### Code Examples
 - [ ] All examples tested

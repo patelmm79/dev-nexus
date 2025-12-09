@@ -1,0 +1,161 @@
+# Authentication Configuration for dev-nexus A2A Server
+
+# ====================================
+# Authentication Mode
+# ====================================
+
+# Options: "workload_identity" (recommended) or "service_account"
+auth_mode: "workload_identity"
+
+# ====================================
+# Workload Identity Configuration
+# ====================================
+# Recommended for Cloud Run deployments
+# Automatically validates GCP identity tokens
+
+workload_identity:
+  enabled: true
+
+  # Allowed service account emails (comma-separated in env: ALLOWED_SERVICE_ACCOUNTS)
+  # Example:
+  # - log-attacker@project.iam.gserviceaccount.com
+  # - orchestrator@project.iam.gserviceaccount.com
+
+  # Token validation
+  validate_token: true
+  validate_audience: false  # Set to true for stricter validation
+
+  # Expected audience (if validate_audience = true)
+  # audience: "https://pattern-discovery-agent-xxxxx.run.app"
+
+# ====================================
+# Service Account Configuration
+# ====================================
+# For local development or non-GCP environments
+
+service_account:
+  enabled: false
+
+  # Path to service account JSON key file
+  # Set via environment variable: SERVICE_ACCOUNT_JSON
+  key_file_path: ""  # Default: from env
+
+  # Scopes required
+  scopes:
+    - "https://www.googleapis.com/auth/cloud-platform"
+
+# ====================================
+# Public Skills (No Authentication Required)
+# ====================================
+
+public_skills:
+  - "query_patterns"
+  - "get_deployment_info"
+  - "get_repository_list"
+  - "get_cross_repo_patterns"
+  - "health_check_external"
+  - "check_documentation_standards"
+  - "validate_documentation_update"
+  - "get_pattern_health"
+  - "query_known_issues"
+
+# ====================================
+# Authenticated Skills (Require Token)
+# ====================================
+
+authenticated_skills:
+  - "add_lesson_learned"
+  - "update_dependency_info"
+  - "add_runtime_issue"
+
+# ====================================
+# Rate Limiting (Optional)
+# ====================================
+
+rate_limiting:
+  enabled: false
+  requests_per_minute: 60
+  burst: 10
+
+# ====================================
+# Security Headers
+# ====================================
+
+security_headers:
+  enabled: true
+  headers:
+    X-Content-Type-Options: "nosniff"
+    X-Frame-Options: "DENY"
+    X-XSS-Protection: "1; mode=block"
+    Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+
+# ====================================
+# CORS Configuration
+# ====================================
+
+cors:
+  enabled: true
+  allowed_origins:
+    - "*"  # WARNING: Restrict in production
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "OPTIONS"
+  allowed_headers:
+    - "Authorization"
+    - "Content-Type"
+  allow_credentials: false
+  max_age: 3600
+
+# ====================================
+# Environment-Specific Overrides
+# ====================================
+
+# Development
+development:
+  auth_mode: "service_account"  # Allow local service account key
+  cors:
+    allowed_origins:
+      - "http://localhost:3000"
+      - "http://localhost:8080"
+  rate_limiting:
+    enabled: false
+
+# Staging
+staging:
+  auth_mode: "workload_identity"
+  cors:
+    allowed_origins:
+      - "https://staging-dashboard.example.com"
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+
+# Production
+production:
+  auth_mode: "workload_identity"
+  cors:
+    allowed_origins:
+      - "https://dashboard.example.com"
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 120
+  security_headers:
+    enabled: true
+
+# ====================================
+# Notes
+# ====================================
+
+# 1. Environment variables take precedence over this file:
+#    - AUTH_MODE
+#    - ALLOWED_SERVICE_ACCOUNTS
+#    - SERVICE_ACCOUNT_JSON
+#
+# 2. For production, always use workload_identity mode
+#
+# 3. Keep ALLOWED_SERVICE_ACCOUNTS list minimal
+#
+# 4. Regular rotate service account keys if using service_account mode
+#
+# 5. Monitor authentication failures in Cloud Logging

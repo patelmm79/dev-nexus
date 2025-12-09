@@ -28,7 +28,7 @@ class DocumentationStandardsChecker:
 
         # Priority files from DOCUMENTATION_STANDARDS.md
         self.priority_files = {
-            "critical": ["README.md", "CLAUDE.md", "QUICK_START.md"],
+            "critical": ["README.md", "CLAUDE.md", "QUICK_START.md", "LICENSE"],
             "high": ["EXTENDING_DEV_NEXUS.md", "API.md", "AgentCard"],
             "medium": ["ARCHITECTURE.md", "LESSONS_LEARNED.md", "TROUBLESHOOTING.md"],
             "low": ["CONTRIBUTING.md", "CHANGELOG.md", "FAQ.md"]
@@ -63,6 +63,16 @@ class DocumentationStandardsChecker:
             for file_path, content, priority in doc_files:
                 file_result = self._check_file(file_path, content, priority, repo)
                 results.append(file_result)
+
+            # Check README for license badge (additional check)
+            readme_license_violations = self._check_readme_license_badge(repo)
+            if readme_license_violations:
+                # Add to README.md result if it exists
+                for result in results:
+                    if result["file"] == "README.md":
+                        result["violations"].extend(readme_license_violations)
+                        result["violation_count"] = len(result["violations"])
+                        break
 
             # Calculate overall compliance
             total_violations = sum(len(r.get("violations", [])) for r in results)
@@ -229,6 +239,12 @@ class DocumentationStandardsChecker:
         checks_performed += 1
         link_violations = self._check_internal_links(content, file_path, repo)
         violations.extend(link_violations)
+
+        # Check 7: License compliance (for LICENSE file)
+        if file_path == "LICENSE":
+            checks_performed += 1
+            license_violations = self._check_license(content, file_path)
+            violations.extend(license_violations)
 
         return {
             "file": file_path,
@@ -444,6 +460,80 @@ class DocumentationStandardsChecker:
 
         return violations
 
+    def _check_license(self, content: str, file_path: str) -> List[Dict[str, Any]]:
+        """Check LICENSE file for GPL v3 compliance"""
+        violations = []
+
+        # Check if it's GPL v3
+        has_gpl = "GNU GENERAL PUBLIC LICENSE" in content
+        has_version_3 = "Version 3" in content
+
+        if not has_gpl:
+            violations.append({
+                "type": "invalid_license",
+                "severity": "critical",
+                "message": "LICENSE file must contain GNU General Public License",
+                "file": file_path,
+                "recommendation": "Replace with full GNU GPL v3.0 text"
+            })
+        elif not has_version_3:
+            violations.append({
+                "type": "wrong_license_version",
+                "severity": "critical",
+                "message": "LICENSE must be GNU GPL Version 3 (not v2 or other version)",
+                "file": file_path,
+                "recommendation": "Update to GNU GPL v3.0"
+            })
+
+        # Check for substantial modification (should be verbatim)
+        if has_gpl and has_version_3:
+            # Check that it's substantial (at least 30KB for full GPL text)
+            if len(content) < 30000:
+                violations.append({
+                    "type": "incomplete_license",
+                    "severity": "high",
+                    "message": "LICENSE file appears incomplete - should contain full GPL v3 text",
+                    "file": file_path,
+                    "recommendation": "Use complete, unmodified GNU GPL v3.0 text"
+                })
+
+        return violations
+
+    def _check_readme_license_badge(self, repo: Repository) -> List[Dict[str, Any]]:
+        """Check if README.md includes GPL v3 badge"""
+        violations = []
+
+        try:
+            readme = repo.get_contents("README.md")
+            content = readme.decoded_content.decode('utf-8')
+
+            # Check for GPL v3 badge or mention
+            has_badge = "GPLv3" in content or "GPL v3" in content or "GPL-3.0" in content
+            has_license_section = re.search(r'##\s*License', content, re.IGNORECASE)
+
+            if not has_badge:
+                violations.append({
+                    "type": "missing_license_badge",
+                    "severity": "high",
+                    "message": "README.md should include GPL v3 badge or license reference",
+                    "file": "README.md",
+                    "recommendation": "Add: [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)"
+                })
+
+            if not has_license_section:
+                violations.append({
+                    "type": "missing_license_section",
+                    "severity": "medium",
+                    "message": "README.md should have a License section",
+                    "file": "README.md",
+                    "recommendation": "Add ## License section referencing GPL v3"
+                })
+
+        except Exception:
+            pass  # README.md doesn't exist or can't be read
+
+        return violations
+
     def _generate_recommendations(self, critical: List, high: List, medium: List) -> List[str]:
         """Generate actionable recommendations based on violations"""
         recommendations = []
@@ -474,6 +564,15 @@ class DocumentationStandardsChecker:
 
         if violation_types.get("invalid_file_path", 0) > 0:
             recommendations.append("Update file path references to match current structure")
+
+        if violation_types.get("invalid_license", 0) > 0 or violation_types.get("wrong_license_version", 0) > 0:
+            recommendations.append("⚠️ CRITICAL: Replace LICENSE file with complete GNU GPL v3.0 text")
+
+        if violation_types.get("missing_license_badge", 0) > 0:
+            recommendations.append("Add GPL v3 badge to README.md")
+
+        if violation_types.get("incomplete_license", 0) > 0:
+            recommendations.append("Update LICENSE file with complete, unmodified GPL v3 text")
 
         if not recommendations:
             recommendations.append("✅ Documentation meets all standards - great work!")

@@ -1,0 +1,210 @@
+# CI/CD Workflow: Deploy to Production Cloud Run
+# Automatically deploys dev-nexus on push to main branch
+
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'a2a/**'
+      - 'core/**'
+      - 'schemas/**'
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - 'cloudbuild.yaml'
+      - '.github/workflows/deploy-production.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  GCP_REGION: us-central1
+  SERVICE_NAME: pattern-discovery-agent
+
+jobs:
+  # Job 1: Run tests before deployment
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Run tests
+        run: |
+          # Add when tests are available
+          # pytest tests/ --cov=a2a --cov=core --cov-report=xml
+          echo "Tests would run here"
+
+      - name: Validate configuration
+        run: |
+          # Validate Python syntax
+          python -m py_compile a2a/server.py
+          python -m py_compile core/*.py
+
+          # Validate Docker build context
+          docker build --target builder -t test-image .
+
+  # Job 2: Build and deploy to Cloud Run
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    permissions:
+      contents: read
+      id-token: write  # Required for Workload Identity Federation
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          # Alternative: use service account key
+          # credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get project details
+        id: project
+        run: |
+          echo "project_id=$(gcloud config get-value project)" >> $GITHUB_OUTPUT
+          echo "project_number=$(gcloud projects describe $(gcloud config get-value project) --format='value(projectNumber)')" >> $GITHUB_OUTPUT
+
+      - name: Configure Docker for GCR
+        run: |
+          gcloud auth configure-docker gcr.io
+
+      - name: Build and push Docker image
+        run: |
+          # Build with Cloud Build (recommended)
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions="_REGION=${{ env.GCP_REGION }},_KNOWLEDGE_BASE_REPO=${{ secrets.KNOWLEDGE_BASE_REPO }}" \
+            --project=${{ steps.project.outputs.project_id }}
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=gcr.io/${{ steps.project.outputs.project_id }}/pattern-discovery-agent:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }} \
+            --platform=managed \
+            --port=8080 \
+            --memory=1Gi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=10 \
+            --timeout=300 \
+            --allow-unauthenticated \
+            --set-env-vars="GCP_PROJECT_ID=${{ steps.project.outputs.project_id }},GCP_REGION=${{ env.GCP_REGION }},KNOWLEDGE_BASE_REPO=${{ secrets.KNOWLEDGE_BASE_REPO }}" \
+            --set-secrets="GITHUB_TOKEN=GITHUB_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
+
+          # Get service URL
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.GCP_REGION }} \
+            --format="value(status.url)")
+
+          echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
+
+      - name: Verify deployment
+        run: |
+          SERVICE_URL="${{ steps.deploy.outputs.service_url }}"
+
+          echo "Testing health endpoint..."
+          curl -f $SERVICE_URL/health || exit 1
+
+          echo "Testing AgentCard endpoint..."
+          curl -f $SERVICE_URL/.well-known/agent.json || exit 1
+
+          echo "✅ Deployment verified successfully!"
+
+      - name: Run smoke tests
+        run: |
+          SERVICE_URL="${{ steps.deploy.outputs.service_url }}"
+
+          # Test public skill
+          echo "Testing public skill execution..."
+          curl -X POST $SERVICE_URL/a2a/execute \
+            -H "Content-Type: application/json" \
+            -d '{
+              "skill_id": "get_repository_list",
+              "input": {}
+            }' | jq .success | grep -q true || exit 1
+
+          echo "✅ Smoke tests passed!"
+
+      - name: Update deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful"
+            echo "Service URL: ${{ steps.deploy.outputs.service_url }}"
+          else
+            echo "❌ Deployment failed"
+            exit 1
+          fi
+
+  # Job 3: Notify on completion
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+
+    steps:
+      - name: Send Discord notification
+        if: vars.DISCORD_WEBHOOK_URL != ''
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ needs.deploy.result }}
+          title: "dev-nexus Deployment"
+          description: |
+            **Environment:** Production
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Status:** ${{ needs.deploy.result }}
+          color: ${{ needs.deploy.result == 'success' && '0x00ff00' || '0xff0000' }}
+
+      - name: Create GitHub deployment
+        if: needs.deploy.result == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              auto_merge: false,
+              required_contexts: []
+            });

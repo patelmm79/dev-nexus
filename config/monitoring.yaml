@@ -1,0 +1,414 @@
+# Monitoring and Alerting Configuration for dev-nexus
+
+# ====================================
+# Cloud Logging Configuration
+# ====================================
+
+logging:
+  enabled: true
+
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+
+  # Structured logging format
+  format: "json"
+
+  # Log fields to include
+  fields:
+    - timestamp
+    - severity
+    - message
+    - request_id
+    - user_agent
+    - service_account
+    - skill_id
+    - execution_time_ms
+    - error_details
+
+  # Log sampling (reduce costs for high-traffic services)
+  sampling:
+    enabled: false
+    rate: 0.1  # Log 10% of requests
+
+# ====================================
+# Cloud Monitoring Metrics
+# ====================================
+
+metrics:
+  enabled: true
+
+  # Custom metrics to track
+  custom_metrics:
+    # Skill execution metrics
+    - name: "skill_execution_count"
+      type: "counter"
+      description: "Number of skill executions"
+      labels:
+        - skill_id
+        - status
+        - service_account
+
+    - name: "skill_execution_duration_ms"
+      type: "histogram"
+      description: "Skill execution duration in milliseconds"
+      labels:
+        - skill_id
+
+    # Knowledge base metrics
+    - name: "knowledge_base_size_bytes"
+      type: "gauge"
+      description: "Size of knowledge base in bytes"
+
+    - name: "knowledge_base_update_count"
+      type: "counter"
+      description: "Number of knowledge base updates"
+
+    # Pattern metrics
+    - name: "patterns_discovered_count"
+      type: "counter"
+      description: "Number of patterns discovered"
+      labels:
+        - repository
+
+    - name: "pattern_similarity_matches"
+      type: "counter"
+      description: "Number of pattern similarity matches found"
+
+    # Runtime monitoring metrics
+    - name: "runtime_issues_reported"
+      type: "counter"
+      description: "Number of runtime issues reported"
+      labels:
+        - issue_type
+        - severity
+        - service_type
+
+    # LLM API metrics
+    - name: "anthropic_api_calls"
+      type: "counter"
+      description: "Number of Anthropic API calls"
+      labels:
+        - model
+        - status
+
+    - name: "anthropic_api_latency_ms"
+      type: "histogram"
+      description: "Anthropic API latency in milliseconds"
+
+    - name: "anthropic_api_tokens_used"
+      type: "counter"
+      description: "Total tokens used (input + output)"
+      labels:
+        - model
+
+# ====================================
+# Alert Policies
+# ====================================
+
+alerts:
+  enabled: true
+
+  # Notification channels
+  # Get from: gcloud alpha monitoring channels list
+  notification_channels: []  # Set via environment or Terraform
+
+  # Alert policies
+  policies:
+    # High error rate alert
+    - name: "high_error_rate"
+      display_name: "Dev-Nexus High Error Rate"
+      enabled: true
+      conditions:
+        - threshold: 5.0  # percentage
+          duration: "300s"  # 5 minutes
+          comparison: "COMPARISON_GT"
+          aggregation:
+            alignment_period: "60s"
+            per_series_aligner: "ALIGN_RATE"
+      severity: "CRITICAL"
+      documentation: |
+        Error rate exceeded 5% for 5 minutes.
+        Check Cloud Logging for error details:
+        resource.type="cloud_run_revision"
+        AND resource.labels.service_name="pattern-discovery-agent"
+        AND severity>=ERROR
+
+    # High latency alert
+    - name: "high_latency"
+      display_name: "Dev-Nexus High Latency"
+      enabled: true
+      conditions:
+        - threshold: 5000  # milliseconds
+          duration: "300s"
+          comparison: "COMPARISON_GT"
+          percentile: 95  # P95 latency
+      severity: "WARNING"
+      documentation: |
+        P95 latency exceeded 5 seconds for 5 minutes.
+        Consider scaling up resources or investigating slow operations.
+
+    # Knowledge base access failures
+    - name: "kb_access_failures"
+      display_name: "Knowledge Base Access Failures"
+      enabled: true
+      conditions:
+        - threshold: 10  # failures
+          duration: "300s"
+          comparison: "COMPARISON_GT"
+      severity: "CRITICAL"
+      documentation: |
+        Multiple knowledge base access failures detected.
+        Check:
+        1. GitHub token is valid
+        2. Repository access permissions
+        3. GitHub API rate limits
+
+    # LLM API failures
+    - name: "llm_api_failures"
+      display_name: "LLM API Failures"
+      enabled: true
+      conditions:
+        - threshold: 5  # failures
+          duration: "300s"
+          comparison: "COMPARISON_GT"
+      severity: "WARNING"
+      documentation: |
+        Multiple Anthropic API failures detected.
+        Check:
+        1. API key is valid
+        2. Rate limits
+        3. API status: https://status.anthropic.com
+
+    # No requests (service down?)
+    - name: "no_requests"
+      display_name: "Dev-Nexus No Requests"
+      enabled: true
+      conditions:
+        - threshold: 0  # no requests
+          duration: "1800s"  # 30 minutes
+          comparison: "COMPARISON_EQ"
+      severity: "INFO"
+      documentation: |
+        No requests received for 30 minutes.
+        This may be normal if service scales to zero.
+        Verify service is accessible if unexpected.
+
+    # Memory usage high
+    - name: "high_memory_usage"
+      display_name: "High Memory Usage"
+      enabled: true
+      conditions:
+        - threshold: 90  # percentage
+          duration: "300s"
+          comparison: "COMPARISON_GT"
+      severity: "WARNING"
+      documentation: |
+        Memory usage exceeded 90% for 5 minutes.
+        Consider:
+        1. Increasing memory allocation
+        2. Investigating memory leaks
+        3. Optimizing knowledge base queries
+
+    # Cold start frequency
+    - name: "frequent_cold_starts"
+      display_name: "Frequent Cold Starts"
+      enabled: false  # Enable if cold starts are a concern
+      conditions:
+        - threshold: 10  # cold starts
+          duration: "3600s"  # 1 hour
+          comparison: "COMPARISON_GT"
+      severity: "INFO"
+      documentation: |
+        Frequent cold starts detected.
+        Consider setting min_instances > 0 to keep instances warm.
+
+# ====================================
+# Uptime Checks
+# ====================================
+
+uptime_checks:
+  enabled: true
+
+  checks:
+    - name: "health_endpoint"
+      display_name: "Health Endpoint Check"
+      resource_type: "cloud_run_revision"
+      path: "/health"
+      port: 8080
+      check_interval: "60s"
+      timeout: "10s"
+      expected_status_code: 200
+
+    - name: "agentcard_endpoint"
+      display_name: "AgentCard Endpoint Check"
+      resource_type: "cloud_run_revision"
+      path: "/.well-known/agent.json"
+      port: 8080
+      check_interval: "300s"  # Every 5 minutes
+      timeout: "10s"
+      expected_status_code: 200
+
+# ====================================
+# Dashboards
+# ====================================
+
+dashboards:
+  enabled: true
+
+  # Custom dashboard configuration
+  default_dashboard:
+    name: "dev-nexus-overview"
+    display_name: "Dev-Nexus Overview"
+
+    widgets:
+      # Request rate
+      - type: "line_chart"
+        title: "Request Rate"
+        metric: "run.googleapis.com/request_count"
+        aggregation: "rate"
+
+      # Latency percentiles
+      - type: "line_chart"
+        title: "Latency (P50, P95, P99)"
+        metrics:
+          - "run.googleapis.com/request_latencies"
+        percentiles: [50, 95, 99]
+
+      # Instance count
+      - type: "line_chart"
+        title: "Instance Count"
+        metric: "run.googleapis.com/container/instance_count"
+
+      # Error rate
+      - type: "line_chart"
+        title: "Error Rate"
+        metric: "run.googleapis.com/request_count"
+        filter: 'response_code_class="5xx"'
+        aggregation: "rate"
+
+      # Skill executions
+      - type: "bar_chart"
+        title: "Skill Executions by Type"
+        metric: "custom.googleapis.com/skill_execution_count"
+        group_by: "skill_id"
+
+      # Runtime issues
+      - type: "bar_chart"
+        title: "Runtime Issues by Severity"
+        metric: "custom.googleapis.com/runtime_issues_reported"
+        group_by: "severity"
+
+      # LLM API usage
+      - type: "line_chart"
+        title: "LLM API Token Usage"
+        metric: "custom.googleapis.com/anthropic_api_tokens_used"
+        aggregation: "sum"
+
+# ====================================
+# Log-based Metrics
+# ====================================
+
+log_based_metrics:
+  enabled: true
+
+  metrics:
+    # Authentication failures
+    - name: "authentication_failures"
+      filter: 'resource.type="cloud_run_revision" AND textPayload=~"Authentication failed"'
+      metric_type: "counter"
+      labels:
+        service_account: 'EXTRACT(textPayload, "service_account: (\\S+)")'
+
+    # Slow skill executions
+    - name: "slow_skill_executions"
+      filter: 'resource.type="cloud_run_revision" AND jsonPayload.execution_time_ms>3000'
+      metric_type: "counter"
+      labels:
+        skill_id: 'jsonPayload.skill_id'
+
+    # Knowledge base update failures
+    - name: "kb_update_failures"
+      filter: 'resource.type="cloud_run_revision" AND textPayload=~"Failed to update knowledge base"'
+      metric_type: "counter"
+
+# ====================================
+# Error Reporting
+# ====================================
+
+error_reporting:
+  enabled: true
+
+  # Sample rate for error reporting
+  sample_rate: 1.0  # Report 100% of errors
+
+  # Ignored errors (known/expected)
+  ignored_errors:
+    - "Cold start timeout"  # Expected for scale-to-zero
+
+  # Group errors by
+  grouping:
+    - error_type
+    - service_name
+    - error_message
+
+# ====================================
+# Tracing Configuration
+# ====================================
+
+tracing:
+  enabled: false  # Enable for detailed request tracing
+
+  # Sample rate (0.0 to 1.0)
+  sample_rate: 0.1  # Trace 10% of requests
+
+  # Export to Cloud Trace
+  export_to_cloud_trace: true
+
+# ====================================
+# Cost Optimization
+# ====================================
+
+cost_optimization:
+  # Log retention (days)
+  log_retention_days: 30
+
+  # Metric retention (days)
+  metric_retention_days: 90
+
+  # Reduce logging for health checks
+  skip_health_check_logs: true
+
+  # Aggregate metrics instead of raw data
+  aggregate_metrics: true
+  aggregation_window: "60s"
+
+# ====================================
+# Environment-Specific Settings
+# ====================================
+
+development:
+  logging:
+    level: "DEBUG"
+  alerts:
+    enabled: false
+  uptime_checks:
+    enabled: false
+
+staging:
+  logging:
+    level: "INFO"
+  alerts:
+    enabled: true
+  uptime_checks:
+    enabled: true
+
+production:
+  logging:
+    level: "WARNING"
+  alerts:
+    enabled: true
+  uptime_checks:
+    enabled: true
+  cost_optimization:
+    log_retention_days: 90
+    metric_retention_days: 180
