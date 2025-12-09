@@ -647,29 +647,91 @@ When pattern analysis completes, dev-nexus automatically:
 
 ## ☁️ Deployment to Cloud Run
 
-Deploy dev-nexus as a 24/7 A2A service on Google Cloud Run:
+Deploy dev-nexus as a 24/7 A2A service on Google Cloud Run.
 
-### Quick Deployment
+> **⚠️ All commands below run on YOUR LOCAL MACHINE, not in the cloud.**
 
+### Prerequisites (Do This First)
+
+**Before running deployment commands, verify you have:**
+
+1. **Google Cloud Project** with billing enabled
+2. **gcloud CLI installed** on your local machine
+   - Not installed? → https://cloud.google.com/sdk/docs/install
+   - Verify: `gcloud --version`
+3. **Authenticated with gcloud**
+   ```bash
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
+   ```
+4. **Required API Keys**
+   - Anthropic API key from https://console.anthropic.com
+   - GitHub personal access token with `repo` scope
+5. **Knowledge base repository** (can be this repo or a separate one)
+
+### Quick Deployment (30 minutes)
+
+**Run these commands on your local machine in a terminal:**
+
+**Step 1: Clone repository (if not already done)**
 ```bash
-# 1. Set up GCP project
-export GCP_PROJECT_ID="your-project-id"
-export GCP_REGION="us-central1"
+# Clone to your local machine
+git clone https://github.com/patelmm79/dev-nexus.git
+cd dev-nexus
+```
 
-# 2. Set up secrets
-export ANTHROPIC_API_KEY="sk-ant-xxxxx"
-export GITHUB_TOKEN="ghp_xxxxx"
-export KNOWLEDGE_BASE_REPO="username/repo"
+**Step 2: Verify prerequisites**
+```bash
+# Check gcloud is installed and authenticated
+gcloud auth list  # Should show your account
+gcloud config get-value project  # Should show your project
+
+# Check you're in the dev-nexus directory
+pwd  # Should end with /dev-nexus
+ls scripts/deploy.sh  # Should exist
+```
+
+**Step 3: Set up environment variables**
+```bash
+# Set these on your local machine
+export GCP_PROJECT_ID="your-project-id"  # Your GCP project ID
+export GCP_REGION="us-central1"  # Or your preferred region
+export ANTHROPIC_API_KEY="sk-ant-xxxxx"  # From console.anthropic.com
+export GITHUB_TOKEN="ghp_xxxxx"  # From GitHub settings
+export KNOWLEDGE_BASE_REPO="username/repo"  # Format: owner/repo
+```
+
+**Step 4: Create secrets in GCP (runs from your machine, creates in cloud)**
+```bash
+# This script creates secrets in Google Cloud Secret Manager
 bash scripts/setup-secrets.sh
 
-# 3. Deploy
+# Expected output: "Secrets configured successfully!"
+# If this fails, see Prerequisites above
+```
+
+**Step 5: Deploy to Cloud Run (runs from your machine, deploys to cloud)**
+```bash
+# This script builds and deploys to Cloud Run
 bash scripts/deploy.sh
 
-# 4. Test
+# This takes 3-5 minutes
+# Expected output: Service URL and "Deployment verified!"
+```
+
+**Step 6: Verify deployment (test from your machine)**
+```bash
+# Get service URL
 SERVICE_URL=$(gcloud run services describe pattern-discovery-agent \
   --region=$GCP_REGION --format="value(status.url)")
+
+# Test health endpoint
 curl $SERVICE_URL/health
+
+# Expected: {"status":"healthy","version":"2.0.0",...}
 ```
+
+✅ **Done!** Your service is now live at the SERVICE_URL.
 
 ### What You Get
 

@@ -2,6 +2,7 @@
 
 > **Quick Start:** Deploy in 30 minutes
 > **Status:** Production Ready ✅
+> **⚠️ IMPORTANT:** All commands in this guide run on YOUR LOCAL MACHINE, not in the cloud.
 
 ---
 
@@ -78,50 +79,72 @@ gcloud config set project $GCP_PROJECT_ID
 
 ## Quick Deployment
 
-**For experienced users - complete deployment in 3 commands:**
+**For experienced users who have already completed prerequisites:**
+
+**Run on your local machine in the dev-nexus directory:**
 
 ```bash
-# 1. Setup secrets
+# 1. Setup secrets in Google Cloud Secret Manager
+# This creates GITHUB_TOKEN and ANTHROPIC_API_KEY secrets
 bash scripts/setup-secrets.sh
+# Expected: "Secrets configured successfully!"
 
-# 2. Deploy to Cloud Run
+# 2. Build and deploy to Cloud Run (takes 3-5 minutes)
+# This builds Docker image and deploys to Cloud Run
 bash scripts/deploy.sh
+# Expected: "Deployment verified!" and service URL
 
-# 3. Test
+# 3. Test the deployed service
+# Get the service URL from Cloud Run
 SERVICE_URL=$(gcloud run services describe pattern-discovery-agent \
   --region=$GCP_REGION --format="value(status.url)")
+
+# Test health endpoint
 curl $SERVICE_URL/health
+# Expected: {"status":"healthy","version":"2.0.0",...}
 ```
 
-✅ Done! Service is live.
+✅ Done! Service is live at the SERVICE_URL.
+
+**Prerequisites not met?** See [Detailed Step-by-Step](#detailed-step-by-step) below.
 
 ---
 
 ## Detailed Step-by-Step
 
-### Step 1: Clone Repository
+**All steps run on your local machine:**
+
+### Step 1: Clone Repository to Your Local Machine
 
 ```bash
+# Clone the repository to your computer
 git clone https://github.com/patelmm79/dev-nexus.git
 cd dev-nexus
+
+# Verify you're in the correct directory
+pwd  # Should end with /dev-nexus
+ls scripts/deploy.sh  # Should show: scripts/deploy.sh
 ```
 
-### Step 2: Setup Environment Variables
+### Step 2: Setup Environment Variables on Your Local Machine
 
 ```bash
+# Set these environment variables in your terminal session
 # Required for deployment
-export GCP_PROJECT_ID="your-project-id"
+export GCP_PROJECT_ID="your-project-id"  # Your GCP project ID
 export GCP_REGION="us-central1"  # Choose your region
-export ANTHROPIC_API_KEY="sk-ant-xxxxx"
-export GITHUB_TOKEN="ghp_xxxxx"
-export KNOWLEDGE_BASE_REPO="patelmm79/dev-nexus"  # Your KB repo
+export ANTHROPIC_API_KEY="sk-ant-xxxxx"  # From console.anthropic.com
+export GITHUB_TOKEN="ghp_xxxxx"  # From GitHub settings
+export KNOWLEDGE_BASE_REPO="patelmm79/dev-nexus"  # Your KB repo (format: owner/repo)
 
-# Verify
+# Verify environment variables are set correctly
 echo "Project: $GCP_PROJECT_ID"
 echo "Region: $GCP_REGION"
 echo "Anthropic Key: ${ANTHROPIC_API_KEY:0:10}..."
 echo "GitHub Token: ${GITHUB_TOKEN:0:10}..."
 echo "KB Repo: $KNOWLEDGE_BASE_REPO"
+
+# All values should be displayed (not empty)
 ```
 
 ### Step 3: Create Secrets in Secret Manager

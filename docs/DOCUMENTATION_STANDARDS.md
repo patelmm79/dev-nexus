@@ -108,8 +108,91 @@ Documentation must include:
 - Break complex topics into steps
 - Use visual aids (diagrams, tables, examples)
 - Be specific and complete in giving instructions
+- **Always specify context**: Where commands run, what they do, what output to expect
 
 **Clarity test**: Can a new contributor follow this without asking questions?
+
+#### Command Context Requirements
+
+**Every code block with commands MUST specify:**
+
+1. **WHERE to run the command**
+   - ❌ Bad: `git clone https://github.com/...`
+   - ✅ Good: `# Run on your local machine\ngit clone https://github.com/...`
+
+2. **WHAT the command does**
+   - ❌ Bad: `bash scripts/deploy.sh`
+   - ✅ Good: `# This script builds and deploys to Cloud Run\nbash scripts/deploy.sh`
+
+3. **EXPECTED output or result**
+   - ❌ Bad: `curl $SERVICE_URL/health`
+   - ✅ Good: `curl $SERVICE_URL/health\n# Expected: {"status":"healthy",...}`
+
+4. **Prerequisites before running**
+   - State what must be done first
+   - Provide verification commands
+   - Link to setup instructions if complex
+
+**Example of proper command documentation:**
+
+```markdown
+### Deploy to Cloud Run
+
+> **⚠️ All commands run on YOUR LOCAL MACHINE, not in the cloud.**
+
+**Prerequisites:**
+1. gcloud CLI installed (`gcloud --version` to verify)
+2. Authenticated (`gcloud auth list` to verify)
+
+**Step 1: Clone repository**
+\`\`\`bash
+# Clone to your local machine
+git clone https://github.com/user/repo.git
+cd repo
+
+# Verify you're in the right directory
+pwd  # Should end with /repo
+\`\`\`
+
+**Step 2: Deploy**
+\`\`\`bash
+# This builds and deploys to Cloud Run (takes 3-5 minutes)
+bash scripts/deploy.sh
+
+# Expected output: "Deployment verified!"
+\`\`\`
+```
+
+**Anti-patterns to avoid:**
+
+❌ **Assuming context**
+```bash
+export GCP_PROJECT_ID="your-project"
+bash scripts/deploy.sh
+```
+Problem: User doesn't know where to run this, what it does, or what comes before.
+
+❌ **Missing verification**
+```bash
+gcloud auth login
+```
+Problem: How do I know if it worked?
+
+❌ **No expected output**
+```bash
+curl http://localhost:8080/health
+```
+Problem: What response means success?
+
+✅ **Complete context**
+```bash
+# Run on your local machine
+# This authenticates your gcloud CLI with Google Cloud
+gcloud auth login
+
+# Verify authentication succeeded
+gcloud auth list  # Should show your email with (active) next to it
+```
 
 ### 5. Up-to-date
 
@@ -637,6 +720,15 @@ Use this for documentation review:
 - [ ] Syntax highlighting correct
 - [ ] Input/output shown
 - [ ] Platform differences noted
+
+### Command Context (CRITICAL)
+- [ ] WHERE commands run is explicitly stated
+- [ ] WHAT each command does is explained
+- [ ] EXPECTED output/result is documented
+- [ ] Prerequisites listed before command blocks
+- [ ] Verification commands provided
+- [ ] Time estimates given for long operations
+- [ ] Error conditions documented
 
 ### Links & References
 - [ ] All internal links work
