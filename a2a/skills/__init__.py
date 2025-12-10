@@ -12,11 +12,8 @@ Skill Categories:
 """
 
 from a2a.skills.base import BaseSkill, SkillGroup
-from a2a.registry import get_registry, register_skill
 
 __all__ = [
     'BaseSkill',
-    'SkillGroup',
-    'get_registry',
-    'register_skill'
+    'SkillGroup'
 ]
