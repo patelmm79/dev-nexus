@@ -21,11 +21,8 @@ gitpython>=3.1.40
 # NEW: A2A Protocol Dependencies
 # ====================================
 
-# Google Agent Development Kit with A2A support
-google-genai-adk>=0.2.0
-
-# A2A Protocol SDK
-a2a-sdk>=0.3.0
+# Note: A2A protocol implementation is in the local a2a/ module
+# No external A2A SDK packages are required
 
 # ASGI Server (with performance extras)
 uvicorn[standard]>=0.25.0
