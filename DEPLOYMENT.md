@@ -85,9 +85,12 @@ gcloud config set project $GCP_PROJECT_ID
 
 ```bash
 # 1. Setup secrets in Google Cloud Secret Manager
-# This creates GITHUB_TOKEN and ANTHROPIC_API_KEY secrets
+# This creates or updates GITHUB_TOKEN and ANTHROPIC_API_KEY secrets
+# NOTE: Safe to run multiple times - automatically updates existing secrets
 bash scripts/setup-secrets.sh
 # Expected: "Secrets configured successfully!"
+
+# If secrets already exist and are unchanged, you can skip to step 2
 
 # 2. Build and deploy to Cloud Run (takes 3-5 minutes)
 # This builds Docker image and deploys to Cloud Run
@@ -147,13 +150,19 @@ echo "KB Repo: $KNOWLEDGE_BASE_REPO"
 # All values should be displayed (not empty)
 ```
 
-### Step 3: Create Secrets in Secret Manager
+### Step 3: Create or Update Secrets in Secret Manager
 
 ```bash
 bash scripts/setup-secrets.sh
 ```
 
-**Expected Output:**
+**What This Does:**
+- Creates new secrets if they don't exist
+- Adds new versions to existing secrets (if they already exist)
+- Configures IAM permissions for Cloud Run service account
+- **Safe to run multiple times** - idempotent operation
+
+**Expected Output (First Time):**
 
 ```
 ================================================
@@ -161,11 +170,11 @@ Setting up Secrets in Secret Manager
 ================================================
 Project: your-project-id
 
-Creating GITHUB_TOKEN secret...
-Created version [1] of the secret [GITHUB_TOKEN].
+Configuring GITHUB_TOKEN secret...
+✓ Created GITHUB_TOKEN
 
-Creating ANTHROPIC_API_KEY secret...
-Created version [1] of the secret [ANTHROPIC_API_KEY].
+Configuring ANTHROPIC_API_KEY secret...
+✓ Created ANTHROPIC_API_KEY
 
 Granting Secret Manager access to Cloud Run service account...
 Service Account: 123456789-compute@developer.gserviceaccount.com
@@ -182,11 +191,33 @@ Secrets configured successfully!
 Cloud Run service account has been granted access
 ```
 
+**Expected Output (Subsequent Runs):**
+
+```
+Configuring GITHUB_TOKEN secret...
+  Secret already exists, adding new version...
+✓ Updated GITHUB_TOKEN
+
+Configuring ANTHROPIC_API_KEY secret...
+  Secret already exists, adding new version...
+✓ Updated ANTHROPIC_API_KEY
+```
+
 **Verify Secrets Created:**
 
 ```bash
+# List all secrets
 gcloud secrets list --project=$GCP_PROJECT_ID
+
+# View secret versions
+gcloud secrets versions list GITHUB_TOKEN --project=$GCP_PROJECT_ID
 ```
+
+**When to Run:**
+- ✅ First deployment - required
+- ✅ Rotating credentials - run to add new versions
+- ✅ Unsure if secrets exist - safe to run
+- ❌ Redeploying code only - skip and go to step 4
 
 ### Step 4: Deploy to Cloud Run
 
@@ -669,9 +700,19 @@ gcloud billing accounts list
 # Pull latest code
 git pull origin main
 
-# Redeploy
+# Update secrets (ONLY if credentials changed)
+# Skip this if your API keys/tokens are unchanged
+bash scripts/setup-secrets.sh
+
+# Redeploy (always required for code updates)
 bash scripts/deploy.sh
 ```
+
+**When to run `setup-secrets.sh` during redeployment:**
+- ✅ **Rotating credentials** - Run to add new secret versions
+- ✅ **Changed API keys** - Run to update secrets
+- ❌ **Code changes only** - Skip and go straight to `deploy.sh`
+- ❌ **First deployment** - Already covered in Step 3 above
 
 ### Rollback
 

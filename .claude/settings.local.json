@@ -13,7 +13,12 @@
       "Bash(iconv:*)",
       "Bash(git init:*)",
       "Bash(git rm:*)",
-      "Bash(gh repo create:*)"
+      "Bash(gh repo create:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(chmod:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

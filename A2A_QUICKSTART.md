@@ -117,16 +117,21 @@ gcloud auth login
 gcloud config set project $GCP_PROJECT_ID
 ```
 
-### 2. Create Secrets
+### 2. Create or Update Secrets
 
 ```bash
 # Set your credentials
 export GITHUB_TOKEN="ghp_xxxxx"
 export ANTHROPIC_API_KEY="sk-ant-xxxxx"
 
-# Run setup script
+# Run setup script (safe to run multiple times)
+# Creates new secrets or updates existing ones
 bash scripts/setup-secrets.sh
+
+# If secrets are already configured and unchanged, you can skip this step
 ```
+
+**Note:** The script is idempotent - it creates secrets on first run, and adds new versions on subsequent runs.
 
 ### 3. Deploy to Cloud Run
 

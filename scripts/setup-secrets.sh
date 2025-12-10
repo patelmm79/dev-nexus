@@ -30,34 +30,32 @@ if [ -z "$ANTHROPIC_API_KEY" ]; then
     exit 1
 fi
 
-# Create secrets
-echo "Creating GITHUB_TOKEN secret..."
-echo -n "$GITHUB_TOKEN" | gcloud secrets create GITHUB_TOKEN \
-    --data-file=- \
-    --project="$PROJECT_ID" \
-    --replication-policy="automatic" \
-    2>/dev/null || echo "Secret GITHUB_TOKEN already exists, updating..."
+# Function to create or update a secret
+create_or_update_secret() {
+    local secret_name=$1
+    local secret_value=$2
 
-if [ $? -ne 0 ]; then
-    echo "Updating GITHUB_TOKEN secret..."
-    echo -n "$GITHUB_TOKEN" | gcloud secrets versions add GITHUB_TOKEN \
+    echo "Configuring ${secret_name} secret..."
+
+    # Try to create the secret
+    if echo -n "$secret_value" | gcloud secrets create "$secret_name" \
         --data-file=- \
-        --project="$PROJECT_ID"
-fi
+        --project="$PROJECT_ID" \
+        --replication-policy="automatic" 2>/dev/null; then
+        echo "✓ Created ${secret_name}"
+    else
+        # Secret already exists, add new version
+        echo "  Secret already exists, adding new version..."
+        echo -n "$secret_value" | gcloud secrets versions add "$secret_name" \
+            --data-file=- \
+            --project="$PROJECT_ID"
+        echo "✓ Updated ${secret_name}"
+    fi
+}
 
-echo "Creating ANTHROPIC_API_KEY secret..."
-echo -n "$ANTHROPIC_API_KEY" | gcloud secrets create ANTHROPIC_API_KEY \
-    --data-file=- \
-    --project="$PROJECT_ID" \
-    --replication-policy="automatic" \
-    2>/dev/null || echo "Secret ANTHROPIC_API_KEY already exists, updating..."
-
-if [ $? -ne 0 ]; then
-    echo "Updating ANTHROPIC_API_KEY secret..."
-    echo -n "$ANTHROPIC_API_KEY" | gcloud secrets versions add ANTHROPIC_API_KEY \
-        --data-file=- \
-        --project="$PROJECT_ID"
-fi
+# Create or update secrets
+create_or_update_secret "GITHUB_TOKEN" "$GITHUB_TOKEN"
+create_or_update_secret "ANTHROPIC_API_KEY" "$ANTHROPIC_API_KEY"
 
 # Get Cloud Run service account
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")

@@ -332,12 +332,15 @@ export GCP_PROJECT_ID="your-project-id"
 export GCP_REGION="us-central1"
 export KNOWLEDGE_BASE_REPO="patelmm79/dev-nexus"
 
-# Create secrets in Secret Manager
+# Create or update secrets in Secret Manager
+# Note: This script is idempotent - safe to run multiple times
+# If secrets already exist, it will add new versions instead of failing
 export GITHUB_TOKEN="ghp_xxxxx"
 export ANTHROPIC_API_KEY="sk-ant-xxxxx"
 bash scripts/setup-secrets.sh
 
 # Deploy to Cloud Run
+# If secrets are already configured and unchanged, you can skip setup-secrets.sh
 bash scripts/deploy.sh
 
 # Test deployment
@@ -346,6 +349,12 @@ SERVICE_URL=$(gcloud run services describe pattern-discovery-agent \
 curl ${SERVICE_URL}/health
 curl ${SERVICE_URL}/.well-known/agent.json
 ```
+
+**Secret Management Notes:**
+- `setup-secrets.sh` automatically handles existing secrets by adding new versions
+- Safe to re-run for secret rotation or updates
+- If secrets are already configured and unchanged, skip directly to `deploy.sh`
+- To verify existing secrets: `gcloud secrets list --project=$GCP_PROJECT_ID`
 
 ### Dashboard Usage
 
