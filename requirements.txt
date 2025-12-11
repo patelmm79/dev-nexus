@@ -53,3 +53,35 @@ google-cloud-storage>=2.10.0
 
 # Environment variable management
 python-dotenv>=1.0.0
+
+# ====================================
+# NEW: PostgreSQL with pgvector Support
+# ====================================
+
+# Async PostgreSQL driver (recommended for FastAPI)
+asyncpg>=0.29.0
+
+# PostgreSQL adapter (sync, for migration scripts)
+psycopg2-binary>=2.9.9
+
+# SQL toolkit and ORM (optional, for complex queries)
+sqlalchemy>=2.0.23
+
+# Async SQLAlchemy support
+sqlalchemy[asyncio]>=2.0.23
+
+# Connection pooling
+psycopg2-pool>=1.1
+
+# Database migrations (optional, for schema versioning)
+alembic>=1.13.0
+
+# ====================================
+# NEW: Vector Embeddings (for pgvector)
+# ====================================
+
+# OpenAI API (for generating embeddings)
+openai>=1.6.0
+
+# NumPy (for vector operations)
+numpy>=1.24.0
