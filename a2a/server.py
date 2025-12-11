@@ -25,6 +25,7 @@ from a2a.registry import get_registry
 from core.knowledge_base import KnowledgeBaseManager
 from core.similarity_finder import SimilarityFinder
 from core.integration_service import IntegrationService
+from core.database import init_db, close_db, get_db
 
 # Import skill modules (they self-register)
 from a2a.skills.pattern_query import PatternQuerySkills
@@ -108,6 +109,43 @@ app.add_middleware(
 
 # Add authentication middleware
 app.add_middleware(AuthMiddleware, config=auth_config)
+
+
+# ============================================
+# Startup and Shutdown Events
+# ============================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup"""
+    try:
+        # Initialize PostgreSQL connection if enabled
+        db = get_db()
+        if db.enabled:
+            print("Initializing PostgreSQL connection...")
+            await init_db()
+            health = await db.health_check()
+            if health["status"] == "healthy":
+                print(f"✓ PostgreSQL connected: {health.get('version', 'unknown')}")
+                if health.get("pgvector_version"):
+                    print(f"✓ pgvector v{health['pgvector_version']} available")
+            else:
+                print(f"⚠ PostgreSQL health check failed: {health}")
+        else:
+            print("PostgreSQL disabled (USE_POSTGRESQL=false)")
+    except Exception as e:
+        print(f"Warning: Failed to initialize PostgreSQL: {e}")
+        print("Continuing with JSON-only mode...")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    try:
+        await close_db()
+        print("✓ Database connections closed")
+    except Exception as e:
+        print(f"Error closing database: {e}")
 
 
 @app.get("/.well-known/agent.json")
@@ -218,7 +256,7 @@ async def health_check():
     """
     Health check endpoint for Cloud Run
     """
-    return {
+    health_data = {
         "status": "healthy",
         "service": "pattern-discovery-agent",
         "version": "2.0.0",
@@ -226,6 +264,19 @@ async def health_check():
         "skills_registered": len(registry),
         "skills": registry.get_skill_ids()
     }
+
+    # Add database health if enabled
+    db = get_db()
+    if db.enabled:
+        db_health = await db.health_check()
+        health_data["database"] = db_health
+        health_data["database_type"] = "postgresql"
+        health_data["pgvector_enabled"] = db_health.get("pgvector_version") is not None
+    else:
+        health_data["database"] = "disabled"
+        health_data["database_type"] = "json"
+
+    return health_data
 
 
 @app.get("/")
