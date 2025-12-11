@@ -35,6 +35,9 @@ class Config:
     gcp_project_id: Optional[str]
     gcp_region: str
 
+    # CORS settings
+    cors_origins: list
+
 
 def load_config() -> Config:
     """
@@ -77,6 +80,10 @@ def load_config() -> Config:
     else:
         agent_url = os.environ.get("HOST_OVERRIDE", f"http://localhost:{os.environ.get('PORT', 8080)}")
 
+    # Load CORS origins (comma-separated list)
+    cors_origins_str = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
+    cors_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
+
     return Config(
         agent_url=agent_url,
         port=int(os.environ.get("PORT", 8080)),
@@ -88,7 +95,8 @@ def load_config() -> Config:
         allowed_service_accounts=os.environ.get("ALLOWED_SERVICE_ACCOUNTS", "").split(","),
         require_auth_for_write=os.environ.get("REQUIRE_AUTH_FOR_WRITE", "true").lower() == "true",
         gcp_project_id=os.environ.get("GCP_PROJECT_ID"),
-        gcp_region=os.environ.get("GCP_REGION", "us-central1")
+        gcp_region=os.environ.get("GCP_REGION", "us-central1"),
+        cors_origins=cors_origins
     )
 
 
