@@ -10,8 +10,7 @@ import sys
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response
 import anthropic
 from github import Github
 
@@ -98,16 +97,41 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Add CORS middleware with configurable origins
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=config.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Dynamic CORS middleware: validate and echo allowed origins
+def origin_allowed(origin: str) -> bool:
+    if not origin:
+        return False
+    # Exact matches from env-config
+    if origin in config.cors_origins:
+        return True
+    # Allow vercel preview domains (conservative): https://<anything>.vercel.app
+    if origin.startswith("https://") and origin.endswith(".vercel.app"):
+        return True
+    return False
 
-# Add authentication middleware
+
+@app.middleware("http")
+async def dynamic_cors(request: Request, call_next):
+    origin = request.headers.get("origin")
+    # Handle preflight OPTIONS early
+    if request.method == "OPTIONS":
+        headers = {}
+        if origin and origin_allowed(origin):
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+            headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+            headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+        return Response(status_code=204, headers=headers)
+
+    response = await call_next(request)
+    if origin and origin_allowed(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    return response
+
+# Add authentication middleware (after CORS handling)
 app.add_middleware(AuthMiddleware, config=auth_config)
 
 
