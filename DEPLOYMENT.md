@@ -6,6 +6,49 @@
 
 ---
 
+## Deployment Methods
+
+Choose your deployment approach:
+
+### 🚀 Bash Scripts (Recommended for Quick Start)
+- **Best for:** Quick deployments, learning, testing
+- **Time to deploy:** 5-10 minutes
+- **Prerequisites:** gcloud CLI, API keys
+- **Documentation:** This guide (sections below)
+- **Pros:** Simple, fast, minimal setup
+- **Cons:** Manual state tracking, no rollback
+
+### 🏗️ Terraform (Recommended for Production)
+- **Best for:** Production, teams, infrastructure as code
+- **Time to deploy:** 10-15 minutes (first time)
+- **Prerequisites:** Terraform, gcloud CLI, API keys
+- **Documentation:** [terraform/README.md](terraform/README.md)
+- **Pros:** State management, rollback, declarative, team collaboration, includes PostgreSQL setup
+- **Cons:** Requires Terraform knowledge
+
+### Detailed Comparison
+
+| Aspect | Bash Scripts | Terraform |
+|--------|--------------|-----------|
+| **State Management** | ❌ Manual tracking | ✅ Built-in, versioned |
+| **Idempotency** | ⚠️ Depends on script | ✅ Guaranteed |
+| **Rollback** | ❌ Manual | ✅ Easy (`terraform apply` old state) |
+| **Team Collaboration** | ❌ Difficult | ✅ Remote state, locking |
+| **Infrastructure Scope** | Cloud Run only | Cloud Run + PostgreSQL + VPC |
+| **Validation** | ⚠️ Manual testing | ✅ `terraform validate`, `plan` |
+| **Documentation** | ⚠️ Comments in scripts | ✅ Self-documenting |
+| **Learning Curve** | ✅ Simple | ⚠️ Moderate |
+| **Setup Time** | ✅ 5-10 minutes | ⚠️ 10-15 minutes |
+| **Production Ready** | ⚠️ Basic setup | ✅ Full infrastructure |
+
+**Recommendation:**
+- **Use Bash Scripts:** For quick tests, learning, single deployments
+- **Use Terraform:** For production, teams, when you need PostgreSQL, or require rollback capability
+
+**This guide covers Bash Scripts.** For Terraform deployment, see **[terraform/README.md](terraform/README.md)**.
+
+---
+
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)

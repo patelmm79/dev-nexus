@@ -248,12 +248,38 @@ Repeat Steps 3-4 for each repository you want to monitor.
 
 ### Deploy A2A Server (Optional)
 
-Enable agent-to-agent communication for programmatic access:
+Enable agent-to-agent communication for programmatic access.
 
+**Option 1: Bash Scripts (Quick)**
 ```bash
+# Simple deployment with bash scripts
+export GCP_PROJECT_ID="your-project-id"
+bash scripts/setup-secrets.sh
+bash scripts/deploy.sh
+
 # See full guide
-cat A2A_QUICKSTART.md
+cat DEPLOYMENT.md
 ```
+
+**Option 2: Terraform (Production)**
+```bash
+# Infrastructure as code approach
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
+terraform init
+terraform plan
+terraform apply
+
+# See full guide
+cat terraform/README.md
+```
+
+**Choose Terraform if you:**
+- Need production-grade infrastructure
+- Want infrastructure as code (version control, rollback)
+- Are deploying PostgreSQL infrastructure
+- Work in a team that needs state management
 
 ### Enable Pre-commit Hooks (Optional)
 

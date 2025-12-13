@@ -651,6 +651,19 @@ Deploy dev-nexus as a 24/7 A2A service on Google Cloud Run.
 
 > **⚠️ All commands below run on YOUR LOCAL MACHINE, not in the cloud.**
 
+### Choose Your Deployment Method
+
+**Option 1: Bash Scripts** (Quick Start)
+- Simple and fast (5-10 minutes)
+- Good for learning and testing
+- Instructions below in this section
+
+**Option 2: Terraform** (Recommended for Production)
+- Infrastructure as code with state management
+- Better for teams and production environments
+- Includes PostgreSQL infrastructure setup
+- See **[terraform/README.md](terraform/README.md)** for complete guide
+
 ### Prerequisites (Do This First)
 
 **Before running deployment commands, verify you have:**
@@ -668,8 +681,9 @@ Deploy dev-nexus as a 24/7 A2A service on Google Cloud Run.
    - Anthropic API key from https://console.anthropic.com
    - GitHub personal access token with `repo` scope
 5. **Knowledge base repository** (can be this repo or a separate one)
+6. **(For Terraform only)** Terraform installed → https://www.terraform.io/downloads
 
-### Quick Deployment (30 minutes)
+### Quick Deployment with Bash Scripts (30 minutes)
 
 **Run these commands on your local machine in a terminal:**
 
@@ -743,14 +757,22 @@ curl $SERVICE_URL/health
 
 ### Complete Documentation
 
-📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide with:
+📖 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Bash scripts deployment guide:
 - Prerequisites and API setup
-- Step-by-step deployment instructions
+- Step-by-step deployment instructions with bash scripts
 - Configuration and scaling options
 - Monitoring and alerting setup
 - Troubleshooting common issues
 - Production readiness checklist
 - Cost optimization strategies
+
+📖 **[terraform/README.md](terraform/README.md)** - Terraform deployment guide:
+- Infrastructure as code approach
+- Terraform configuration and variables
+- State management (local and remote)
+- Complete PostgreSQL infrastructure setup
+- Production environment examples
+- Rollback and update strategies
 
 📖 **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Comprehensive troubleshooting for:
 - Deployment failures
@@ -832,7 +854,8 @@ This is your personal system, but you can extend it:
 ### Deployment & Operations
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Complete Cloud Run deployment guide | DevOps |
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Cloud Run deployment with bash scripts | DevOps |
+| **[terraform/README.md](terraform/README.md)** | Infrastructure as code deployment guide | DevOps/Teams |
 | **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Comprehensive troubleshooting (50+ scenarios) | Operators |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | System design and components | Architects |
 | **[PRODUCTION_READY.md](PRODUCTION_READY.md)** | Production readiness checklist | DevOps |
