@@ -11,6 +11,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
+import logging
 import anthropic
 from github import Github
 
@@ -96,6 +97,37 @@ app = FastAPI(
     description="Automated architectural consistency and pattern discovery across GitHub repositories",
     version="2.0.0"
 )
+
+# Temporary request-logging middleware (debug only)
+logger = logging.getLogger("a2a.debug")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+
+@app.middleware("http")
+async def request_logger(request: Request, call_next):
+    try:
+        headers = {
+            "origin": request.headers.get("origin"),
+            "authorization": "REDACTED" if request.headers.get("authorization") else None,
+            "content-type": request.headers.get("content-type"),
+            "acr-method": request.headers.get("access-control-request-method"),
+            "acr-headers": request.headers.get("access-control-request-headers"),
+        }
+        logger.info(f"REQ {request.method} {request.url.path} headers={headers}")
+    except Exception as e:
+        logger.warning(f"Failed to log request: {e}")
+
+    response = await call_next(request)
+    try:
+        logger.info(f"RESP {request.method} {request.url.path} status={response.status_code}")
+    except Exception:
+        pass
+    return response
 
 # Dynamic CORS middleware: validate and echo allowed origins
 def origin_allowed(origin: str) -> bool:
