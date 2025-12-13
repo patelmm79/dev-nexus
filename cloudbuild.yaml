@@ -43,7 +43,13 @@ steps:
       - '300'
       - '--allow-unauthenticated'  # Change to --no-allow-unauthenticated for production
       - '--set-env-vars'
-      - 'GCP_PROJECT_ID=$PROJECT_ID,GCP_REGION=$_REGION,KNOWLEDGE_BASE_REPO=$_KNOWLEDGE_BASE_REPO,CORS_ORIGINS=http://localhost:3000\,http://localhost:5173\,https://*.vercel.app\,https://dev-nexus-frontend-noig7bsv5-milan-patels-projects-187b35de.vercel.app'
+      - 'GCP_PROJECT_ID=$PROJECT_ID'
+      - '--set-env-vars'
+      - 'GCP_REGION=$_REGION'
+      - '--set-env-vars'
+      - 'KNOWLEDGE_BASE_REPO=$_KNOWLEDGE_BASE_REPO'
+      - '--set-env-vars'
+      - 'CORS_ORIGINS=http://localhost:3000,http://localhost:5173,https://*.vercel.app,https://dev-nexus-frontend-noig7bsv5-milan-patels-projects-187b35de.vercel.app'
       - '--set-secrets'
       - 'GITHUB_TOKEN=GITHUB_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest'
 
