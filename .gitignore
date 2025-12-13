@@ -27,3 +27,9 @@ knowledge_base.json
 
 # Logs
 *.log
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
