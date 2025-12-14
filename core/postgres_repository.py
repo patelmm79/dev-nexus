@@ -12,14 +12,14 @@ import json
 
 from schemas.knowledge_base_v2 import (
     KnowledgeBaseV2,
-    RepositoryInfo,
-    LatestPatterns,
+    RepositoryMetadata,
+    PatternEntry,
     DeploymentInfo,
     DependencyInfo,
     LessonLearned,
-    Pattern,
-    TechnicalDecision,
-    ReusableComponent
+    ReusableComponent,
+    TestingInfo,
+    SecurityInfo
 )
 from core.database import DatabaseManager
 
@@ -41,12 +41,12 @@ class PostgresRepository:
         """
         self.db = db_manager
 
-    async def get_all_repositories(self) -> Dict[str, RepositoryInfo]:
+    async def get_all_repositories(self) -> Dict[str, RepositoryMetadata]:
         """
         Load all repositories from PostgreSQL
 
         Returns:
-            Dictionary mapping repository names to RepositoryInfo objects
+            Dictionary mapping repository names to RepositoryMetadata objects
         """
         try:
             query = """
@@ -69,14 +69,15 @@ class PostgresRepository:
                 # Get dependency info
                 dependencies = await self._get_dependency_info(row['id'])
 
-                # Create RepositoryInfo object
-                repo_info = RepositoryInfo(
+                # Create RepositoryMetadata object
+                repo_info = RepositoryMetadata(
                     latest_patterns=latest_patterns,
                     deployment=deployment,
                     dependencies=dependencies,
-                    testing=None,  # TODO: Implement if needed
-                    security=None,  # TODO: Implement if needed
-                    history=[]  # TODO: Implement if needed
+                    testing=TestingInfo(),
+                    security=SecurityInfo(),
+                    history=[],
+                    last_updated=row['updated_at']
                 )
 
                 repositories[repo_name] = repo_info
@@ -96,12 +97,15 @@ class PostgresRepository:
             KnowledgeBaseV2 object
         """
         repositories = await self.get_all_repositories()
+        now = datetime.now()
         return KnowledgeBaseV2(
             schema_version="2.0",
-            repositories=repositories
+            repositories=repositories,
+            created_at=now,
+            last_updated=now
         )
 
-    async def get_repository_info(self, repository_name: str) -> Optional[RepositoryInfo]:
+    async def get_repository_info(self, repository_name: str) -> Optional[RepositoryMetadata]:
         """
         Get information for a specific repository
 
@@ -109,29 +113,31 @@ class PostgresRepository:
             repository_name: Repository name (format: "owner/repo")
 
         Returns:
-            RepositoryInfo object or None if not found
+            RepositoryMetadata object or None if not found
         """
         try:
-            query = "SELECT id FROM repositories WHERE name = $1"
+            query = "SELECT id, updated_at FROM repositories WHERE name = $1"
             row = await self.db.fetchrow(query, repository_name)
 
             if not row:
                 return None
 
             repo_id = row['id']
+            updated_at = row['updated_at']
 
             # Get all info for this repository
             latest_patterns = await self._get_latest_patterns(repo_id)
             deployment = await self._get_deployment_info(repo_id)
             dependencies = await self._get_dependency_info(repo_id)
 
-            return RepositoryInfo(
+            return RepositoryMetadata(
                 latest_patterns=latest_patterns,
                 deployment=deployment,
                 dependencies=dependencies,
-                testing=None,
-                security=None,
-                history=[]
+                testing=TestingInfo(),
+                security=SecurityInfo(),
+                history=[],
+                last_updated=updated_at
             )
 
         except Exception as e:
@@ -322,62 +328,46 @@ class PostgresRepository:
         row = await self.db.fetchrow(query, repository_name)
         return row['id']
 
-    async def _get_latest_patterns(self, repo_id: int) -> LatestPatterns:
+    async def _get_latest_patterns(self, repo_id: int) -> PatternEntry:
         """Get latest patterns for a repository"""
         try:
-            # Get patterns
+            # Get patterns as simple strings
             patterns_query = """
-                SELECT name, description, context
+                SELECT name
                 FROM patterns
                 WHERE repo_id = $1
                 ORDER BY created_at DESC
                 LIMIT 50
             """
             pattern_rows = await self.db.fetch(patterns_query, repo_id)
+            patterns = [row['name'] for row in pattern_rows]
 
-            patterns = [
-                Pattern(
-                    name=row['name'],
-                    description=row['description'] or "",
-                    why=row['context'] or ""
-                )
-                for row in pattern_rows
-            ]
-
-            # Get technical decisions
+            # Get technical decisions as simple strings
             decisions_query = """
-                SELECT what, why, alternatives
+                SELECT what
                 FROM technical_decisions
                 WHERE repo_id = $1
                 ORDER BY created_at DESC
                 LIMIT 20
             """
             decision_rows = await self.db.fetch(decisions_query, repo_id)
+            decisions = [row['what'] for row in decision_rows]
 
-            decisions = [
-                TechnicalDecision(
-                    what=row['what'],
-                    why=row['why'] or "",
-                    alternatives=row['alternatives'] or ""
-                )
-                for row in decision_rows
-            ]
-
-            # Get reusable components
+            # Get reusable components (matching schema: name, description, files, language)
             components_query = """
-                SELECT name, purpose, location
+                SELECT name, purpose as description, location, 'unknown' as language
                 FROM reusable_components
                 WHERE repo_id = $1
                 ORDER BY created_at DESC
                 LIMIT 20
             """
             component_rows = await self.db.fetch(components_query, repo_id)
-
             components = [
                 ReusableComponent(
                     name=row['name'],
-                    purpose=row['purpose'] or "",
-                    location=row['location'] or ""
+                    description=row['description'] or "",
+                    files=[row['location']] if row['location'] else [],
+                    language=row['language']
                 )
                 for row in component_rows
             ]
@@ -394,29 +384,35 @@ class PostgresRepository:
             keyword_rows = await self.db.fetch(keywords_query, repo_id)
             keywords = [row['keyword'] for row in keyword_rows]
 
-            # Get problem domain
-            domain_query = "SELECT problem_domain FROM repositories WHERE id = $1"
-            domain_row = await self.db.fetchrow(domain_query, repo_id)
-            problem_domain = domain_row['problem_domain'] if domain_row else ""
+            # Get repository info for additional fields
+            repo_query = "SELECT problem_domain, last_analyzed, last_commit_sha FROM repositories WHERE id = $1"
+            repo_row = await self.db.fetchrow(repo_query, repo_id)
+            problem_domain = repo_row['problem_domain'] if repo_row else ""
+            analyzed_at = repo_row['last_analyzed'] if repo_row else datetime.now()
+            commit_sha = repo_row['last_commit_sha'] if repo_row else ""
 
-            return LatestPatterns(
+            return PatternEntry(
                 patterns=patterns,
                 decisions=decisions,
                 reusable_components=components,
                 dependencies=[],  # Handled separately
                 problem_domain=problem_domain or "",
-                keywords=keywords
+                keywords=keywords,
+                analyzed_at=analyzed_at,
+                commit_sha=commit_sha or "unknown"
             )
 
         except Exception as e:
             logger.error(f"Failed to get latest patterns: {e}")
-            return LatestPatterns(
+            return PatternEntry(
                 patterns=[],
                 decisions=[],
                 reusable_components=[],
                 dependencies=[],
                 problem_domain="",
-                keywords=[]
+                keywords=[],
+                analyzed_at=datetime.now(),
+                commit_sha="unknown"
             )
 
     async def _get_deployment_info(self, repo_id: int) -> DeploymentInfo:
