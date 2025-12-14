@@ -28,6 +28,11 @@ steps:
         GCP_REGION: "${_REGION}"
         KNOWLEDGE_BASE_REPO: "${_KNOWLEDGE_BASE_REPO}"
         CORS_ORIGINS: "http://localhost:3000,http://localhost:5173,https://*.vercel.app,https://dev-nexus-frontend-noig7bsv5-milan-patels-projects-187b35de.vercel.app"
+        USE_POSTGRESQL: "true"
+        POSTGRES_HOST: "10.128.0.2"
+        POSTGRES_PORT: "5432"
+        POSTGRES_DB: "devnexus"
+        POSTGRES_USER: "devnexus"
         EOF
 
         # Quote the --set-secrets value to ensure it's passed as a single arg
@@ -42,8 +47,10 @@ steps:
           --max-instances 10 \
           --timeout 300 \
           --allow-unauthenticated \
+          --vpc-connector projects/${PROJECT_ID}/locations/${_REGION}/connectors/dev-nexus-connector \
+          --vpc-egress all-traffic \
           --env-vars-file env.yaml \
-          --set-secrets 'GITHUB_TOKEN=GITHUB_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest'
+          --set-secrets 'GITHUB_TOKEN=GITHUB_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,POSTGRES_PASSWORD=POSTGRES_PASSWORD:latest'
 
 # Substitution variables (can be overridden at build time)
 substitutions:
