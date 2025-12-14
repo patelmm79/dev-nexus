@@ -15,8 +15,8 @@ from a2a.skills.base import BaseSkill, SkillGroup
 class QueryPatternsSkill(BaseSkill):
     """Search for similar architectural patterns across repositories"""
 
-    def __init__(self, kb_manager, similarity_finder):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo, similarity_finder):
+        self.postgres_repo = postgres_repo
         self.similarity_finder = similarity_finder
 
     @property
@@ -85,8 +85,8 @@ class QueryPatternsSkill(BaseSkill):
             patterns = input_data.get('patterns', [])
             min_matches = input_data.get('min_matches', 1)
 
-            # Load knowledge base
-            kb = self.kb_manager.load_knowledge_base()
+            # Load knowledge base from PostgreSQL
+            kb = await self.postgres_repo.load_knowledge_base()
 
             # Search by keywords if provided
             if keywords:
@@ -135,8 +135,8 @@ class QueryPatternsSkill(BaseSkill):
 class GetCrossRepoPatternsSkill(BaseSkill):
     """Find patterns that exist across multiple repositories"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -196,7 +196,7 @@ class GetCrossRepoPatternsSkill(BaseSkill):
             min_repos = input_data.get('min_repos', 2)
             pattern_type = input_data.get('pattern_type')
 
-            kb = self.kb_manager.load_knowledge_base()
+            kb = await self.postgres_repo.load_knowledge_base()
 
             # Aggregate patterns across all repos
             pattern_to_repos = {}
@@ -244,11 +244,11 @@ class GetCrossRepoPatternsSkill(BaseSkill):
 class PatternQuerySkills(SkillGroup):
     """Group of pattern query and analysis skills"""
 
-    def __init__(self, kb_manager, similarity_finder):
-        super().__init__(kb_manager=kb_manager, similarity_finder=similarity_finder)
+    def __init__(self, postgres_repo, similarity_finder):
+        super().__init__(postgres_repo=postgres_repo, similarity_finder=similarity_finder)
         self._skills = [
-            QueryPatternsSkill(kb_manager, similarity_finder),
-            GetCrossRepoPatternsSkill(kb_manager)
+            QueryPatternsSkill(postgres_repo, similarity_finder),
+            GetCrossRepoPatternsSkill(postgres_repo)
         ]
 
     def get_skills(self) -> List[BaseSkill]:

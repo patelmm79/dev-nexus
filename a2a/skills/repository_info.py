@@ -15,8 +15,8 @@ from a2a.skills.base import BaseSkill, SkillGroup
 class GetRepositoryListSkill(BaseSkill):
     """Get list of all tracked repositories with optional metadata"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -70,7 +70,7 @@ class GetRepositoryListSkill(BaseSkill):
         try:
             include_metadata = input_data.get('include_metadata', True)
 
-            kb = self.kb_manager.load_knowledge_base()
+            kb = await self.postgres_repo.load_knowledge_base()
 
             if include_metadata:
                 repositories = [
@@ -105,8 +105,8 @@ class GetRepositoryListSkill(BaseSkill):
 class GetDeploymentInfoSkill(BaseSkill):
     """Get deployment information for a specific repository"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -183,13 +183,14 @@ class GetDeploymentInfoSkill(BaseSkill):
                 }
 
             # Get repository info
-            repo_info = self.kb_manager.get_repository_info(repository)
+            repo_info = await self.postgres_repo.get_repository_info(repository)
 
             if not repo_info:
+                kb = await self.postgres_repo.load_knowledge_base()
                 return {
                     "success": False,
                     "error": f"Repository '{repository}' not found in knowledge base",
-                    "available_repositories": list(self.kb_manager.load_knowledge_base().repositories.keys())
+                    "available_repositories": list(kb.repositories.keys())
                 }
 
             # Build response
@@ -239,11 +240,11 @@ class GetDeploymentInfoSkill(BaseSkill):
 class RepositoryInfoSkills(SkillGroup):
     """Group of repository information skills"""
 
-    def __init__(self, kb_manager):
-        super().__init__(kb_manager=kb_manager)
+    def __init__(self, postgres_repo):
+        super().__init__(postgres_repo=postgres_repo)
         self._skills = [
-            GetRepositoryListSkill(kb_manager),
-            GetDeploymentInfoSkill(kb_manager)
+            GetRepositoryListSkill(postgres_repo),
+            GetDeploymentInfoSkill(postgres_repo)
         ]
 
     def get_skills(self) -> List[BaseSkill]:

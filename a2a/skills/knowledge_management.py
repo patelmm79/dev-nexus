@@ -18,8 +18,8 @@ from schemas.knowledge_base_v2 import LessonLearned, DependencyInfo, DeploymentI
 class AddLessonLearnedSkill(BaseSkill):
     """Manually record a lesson learned or deployment insight"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -152,7 +152,7 @@ class AddLessonLearnedSkill(BaseSkill):
             )
 
             # Add to knowledge base
-            success = self.kb_manager.add_lesson_learned(repository, lesson)
+            success = await self.postgres_repo.add_lesson_learned(repository, lesson)
 
             if success:
                 return {
@@ -161,8 +161,7 @@ class AddLessonLearnedSkill(BaseSkill):
                     "lesson_id": lesson.timestamp.isoformat(),
                     "repository": repository,
                     "category": category,
-                    "severity": severity,
-                    "kb_url": f"https://github.com/{self.kb_manager.kb_repo_name}/blob/main/knowledge_base.json"
+                    "severity": severity
                 }
             else:
                 return {
@@ -180,8 +179,8 @@ class AddLessonLearnedSkill(BaseSkill):
 class UpdateDependencyInfoSkill(BaseSkill):
     """Update dependency graph for a repository"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -283,14 +282,13 @@ class UpdateDependencyInfoSkill(BaseSkill):
             )
 
             # Update in knowledge base
-            success = self.kb_manager.update_dependency_info(repository, dep_info)
+            success = await self.postgres_repo.update_dependency_info(repository, dep_info)
 
             if success:
                 return {
                     "success": True,
                     "message": f"Dependency info updated for {repository}",
-                    "repository": repository,
-                    "kb_url": f"https://github.com/{self.kb_manager.kb_repo_name}/blob/main/knowledge_base.json"
+                    "repository": repository
                 }
             else:
                 return {
@@ -308,8 +306,8 @@ class UpdateDependencyInfoSkill(BaseSkill):
 class AddDeploymentInfoSkill(BaseSkill):
     """Add or create repository deployment information"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -369,7 +367,7 @@ class AddDeploymentInfoSkill(BaseSkill):
             # Construct DeploymentInfo model (pydantic will validate)
             deployment_info = DeploymentInfo(**deployment_payload)
 
-            success = self.kb_manager.add_deployment_info(repository, deployment_info)
+            success = await self.postgres_repo.add_deployment_info(repository, deployment_info)
 
             if success:
                 return {"success": True, "message": f"Deployment info added for {repository}", "repository": repository}
@@ -383,12 +381,12 @@ class AddDeploymentInfoSkill(BaseSkill):
 class KnowledgeManagementSkills(SkillGroup):
     """Group of knowledge management skills"""
 
-    def __init__(self, kb_manager):
-        super().__init__(kb_manager=kb_manager)
+    def __init__(self, postgres_repo):
+        super().__init__(postgres_repo=postgres_repo)
         self._skills = [
-            AddLessonLearnedSkill(kb_manager),
-            UpdateDependencyInfoSkill(kb_manager),
-            AddDeploymentInfoSkill(kb_manager)
+            AddLessonLearnedSkill(postgres_repo),
+            UpdateDependencyInfoSkill(postgres_repo),
+            AddDeploymentInfoSkill(postgres_repo)
         ]
 
     def get_skills(self) -> List[BaseSkill]:

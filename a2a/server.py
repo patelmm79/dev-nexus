@@ -22,10 +22,10 @@ from a2a.config import load_config, validate_config
 from a2a.auth import AuthConfig, AuthMiddleware, verify_a2a_auth
 from a2a.executor import PatternDiscoveryExecutor
 from a2a.registry import get_registry
-from core.knowledge_base import KnowledgeBaseManager
+from core.postgres_repository import PostgresRepository
 from core.similarity_finder import SimilarityFinder
 from core.integration_service import IntegrationService
-from core.database import init_db, close_db, get_db
+from core.database import init_db, close_db, get_db, DatabaseManager
 
 # Import skill modules (they self-register)
 from a2a.skills.pattern_query import PatternQuerySkills
@@ -47,10 +47,14 @@ except ValueError as e:
 
 # Initialize clients
 anthropic_client = anthropic.Anthropic(api_key=config.anthropic_api_key)
-github_client = Github(config.github_token)
 
 # Initialize core services
-kb_manager = KnowledgeBaseManager(github_client, config.knowledge_base_repo)
+# PostgreSQL database manager
+db_manager = DatabaseManager()
+
+# PostgreSQL repository (replaces JSON-based KnowledgeBaseManager)
+postgres_repo = PostgresRepository(db_manager)
+
 similarity_finder = SimilarityFinder()
 integration_service = IntegrationService()
 
@@ -58,15 +62,15 @@ integration_service = IntegrationService()
 registry = get_registry()
 
 # Register all skills
-pattern_query_skills = PatternQuerySkills(kb_manager, similarity_finder)
+pattern_query_skills = PatternQuerySkills(postgres_repo, similarity_finder)
 for skill in pattern_query_skills.get_skills():
     registry.register(skill)
 
-repository_info_skills = RepositoryInfoSkills(kb_manager)
+repository_info_skills = RepositoryInfoSkills(postgres_repo)
 for skill in repository_info_skills.get_skills():
     registry.register(skill)
 
-knowledge_mgmt_skills = KnowledgeManagementSkills(kb_manager)
+knowledge_mgmt_skills = KnowledgeManagementSkills(postgres_repo)
 for skill in knowledge_mgmt_skills.get_skills():
     registry.register(skill)
 
@@ -81,7 +85,7 @@ for skill in doc_standards_skills.get_skills():
     registry.register(skill)
 
 # Register runtime monitoring skills
-runtime_monitoring_skills = RuntimeMonitoringSkills(kb_manager)
+runtime_monitoring_skills = RuntimeMonitoringSkills(postgres_repo)
 for skill in runtime_monitoring_skills.get_skills():
     registry.register(skill)
 
@@ -175,30 +179,34 @@ app.add_middleware(AuthMiddleware, config=auth_config)
 async def startup_event():
     """Initialize services on startup"""
     try:
-        # Initialize PostgreSQL connection if enabled
-        db = get_db()
-        if db.enabled:
+        # Initialize PostgreSQL connection (REQUIRED - JSON storage removed)
+        if db_manager.enabled:
             print("Initializing PostgreSQL connection...")
-            await init_db()
-            health = await db.health_check()
+            await db_manager.connect()
+            health = await db_manager.health_check()
             if health["status"] == "healthy":
                 print(f"✓ PostgreSQL connected: {health.get('version', 'unknown')}")
                 if health.get("pgvector_version"):
                     print(f"✓ pgvector v{health['pgvector_version']} available")
+                print("✓ PostgresRepository initialized (JSON storage disabled)")
             else:
                 print(f"⚠ PostgreSQL health check failed: {health}")
+                raise RuntimeError("PostgreSQL health check failed")
         else:
-            print("PostgreSQL disabled (USE_POSTGRESQL=false)")
+            print("ERROR: PostgreSQL is disabled (USE_POSTGRESQL=false)")
+            print("JSON storage has been removed. PostgreSQL is REQUIRED!")
+            raise RuntimeError("PostgreSQL must be enabled. Set USE_POSTGRESQL=true")
     except Exception as e:
-        print(f"Warning: Failed to initialize PostgreSQL: {e}")
-        print("Continuing with JSON-only mode...")
+        print(f"FATAL: Failed to initialize PostgreSQL: {e}")
+        print("Cannot start server without PostgreSQL. JSON storage has been removed.")
+        raise
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
     try:
-        await close_db()
+        await db_manager.disconnect()
         print("✓ Database connections closed")
     except Exception as e:
         print(f"Error closing database: {e}")

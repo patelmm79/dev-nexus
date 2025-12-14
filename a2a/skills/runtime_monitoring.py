@@ -13,8 +13,8 @@ from a2a.skills.base import BaseSkill
 class AddRuntimeIssueSkill(BaseSkill):
     """Record runtime issues from production monitoring"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -140,7 +140,7 @@ class AddRuntimeIssueSkill(BaseSkill):
             repository = input_data['repository']
 
             # Load knowledge base
-            kb_data = self.kb_manager.load()
+            kb_data = await self.postgres_repo.load()
 
             # Ensure repository exists
             if repository not in kb_data.get('repositories', {}):
@@ -201,7 +201,7 @@ class AddRuntimeIssueSkill(BaseSkill):
                 }
 
             # Save knowledge base
-            self.kb_manager.save(kb_data)
+            await self.postgres_repo.save(kb_data)
 
             return {
                 "success": True,
@@ -275,8 +275,8 @@ class AddRuntimeIssueSkill(BaseSkill):
 class GetPatternHealthSkill(BaseSkill):
     """Analyze runtime health of a pattern across repositories"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -358,7 +358,7 @@ class GetPatternHealthSkill(BaseSkill):
             severity_threshold = input_data.get('severity_threshold', 'low')
 
             # Load knowledge base
-            kb_data = self.kb_manager.load()
+            kb_data = await self.postgres_repo.load()
 
             # Find repos using this pattern
             repos_with_pattern = []
@@ -459,8 +459,8 @@ class GetPatternHealthSkill(BaseSkill):
 class QueryKnownIssuesSkill(BaseSkill):
     """Query for known runtime issues matching criteria"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -549,7 +549,7 @@ class QueryKnownIssuesSkill(BaseSkill):
         """
         try:
             # Load knowledge base
-            kb_data = self.kb_manager.load()
+            kb_data = await self.postgres_repo.load()
 
             matching_issues = []
             repositories_affected = set()
@@ -627,13 +627,13 @@ class QueryKnownIssuesSkill(BaseSkill):
 class RuntimeMonitoringSkills:
     """Group of runtime monitoring skills"""
 
-    def __init__(self, kb_manager):
-        self.kb_manager = kb_manager
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
 
     def get_skills(self) -> List[BaseSkill]:
         """Get all runtime monitoring skills"""
         return [
-            AddRuntimeIssueSkill(self.kb_manager),
-            GetPatternHealthSkill(self.kb_manager),
-            QueryKnownIssuesSkill(self.kb_manager)
+            AddRuntimeIssueSkill(self.postgres_repo),
+            GetPatternHealthSkill(self.postgres_repo),
+            QueryKnownIssuesSkill(self.postgres_repo)
         ]
