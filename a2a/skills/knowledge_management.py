@@ -387,7 +387,8 @@ class KnowledgeManagementSkills(SkillGroup):
         super().__init__(kb_manager=kb_manager)
         self._skills = [
             AddLessonLearnedSkill(kb_manager),
-            UpdateDependencyInfoSkill(kb_manager)
+            UpdateDependencyInfoSkill(kb_manager),
+            AddDeploymentInfoSkill(kb_manager)
         ]
 
     def get_skills(self) -> List[BaseSkill]:
