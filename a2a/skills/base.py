@@ -129,16 +129,16 @@ class SkillGroup(ABC):
     and get_cross_repo_patterns.
     """
 
-    def __init__(self, kb_manager=None, similarity_finder=None, integration_service=None):
+    def __init__(self, postgres_repo=None, similarity_finder=None, integration_service=None):
         """
         Initialize skill group with shared dependencies
 
         Args:
-            kb_manager: Knowledge base manager (optional)
+            postgres_repo: PostgreSQL repository (optional)
             similarity_finder: Similarity finder service (optional)
             integration_service: Integration service (optional)
         """
-        self.kb_manager = kb_manager
+        self.postgres_repo = postgres_repo
         self.similarity_finder = similarity_finder
         self.integration_service = integration_service
 
