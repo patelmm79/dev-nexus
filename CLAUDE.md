@@ -9,10 +9,11 @@ This is a Pattern Discovery Agent System - an automated architectural consistenc
 **Key Features**:
 1. **Pattern Discovery**: Detects similar patterns across repositories
 2. **Knowledge Base Management**: Maintains centralized architectural memory (v2 schema)
-3. **Reusable Workflows**: Monitored projects only need a tiny 15-line workflow file
-4. **A2A Protocol Support**: Agent-to-Agent communication for programmatic access
-5. **Hybrid Architecture**: GitHub Actions CLI + A2A Server modes
-6. **Extensible**: Can notify external orchestration services (e.g., [dependency-orchestrator](https://github.com/patelmm79/dependency-orchestrator))
+3. **Runtime Monitoring**: Tracks production issues and pattern health across deployments
+4. **Reusable Workflows**: Monitored projects only need a tiny 15-line workflow file
+5. **A2A Protocol Support**: Agent-to-Agent communication for programmatic access
+6. **Hybrid Architecture**: GitHub Actions CLI + A2A Server modes
+7. **Extensible**: Can notify external orchestration services (e.g., [dependency-orchestrator](https://github.com/patelmm79/dependency-orchestrator))
 
 ## Core Architecture
 
@@ -58,19 +59,23 @@ The system now operates in two modes:
    - **Dynamic AgentCard**: Generated from skill registry (not hardcoded)
    - **Thin Coordinator**: 250 lines (reduced from 445 lines)
    - Publishes AgentCard at `/.well-known/agent.json`
-   - Nine skills for comprehensive agent coordination:
+   - 13 skills for comprehensive agent coordination:
      - `query_patterns` (public) - Search for similar patterns
      - `get_deployment_info` (public) - Get deployment/infrastructure info
      - `add_lesson_learned` (authenticated) - Record lessons learned
      - `get_repository_list` (public) - List all tracked repositories
      - `get_cross_repo_patterns` (public) - Find patterns across multiple repos
      - `update_dependency_info` (authenticated) - Update dependency graphs
+     - `add_deployment_info` (authenticated) - **NEW** Add/initialize deployment metadata
      - `health_check_external` (public) - Check external agent health
-     - `check_documentation_standards` (public) - **NEW** Check repository docs for standards conformity
-     - `validate_documentation_update` (public) - **NEW** Validate docs updated after code changes
+     - `check_documentation_standards` (public) - Check repository docs for standards conformity
+     - `validate_documentation_update` (public) - Validate docs updated after code changes
+     - `add_runtime_issue` (authenticated) - **NEW** Record runtime issues from production monitoring
+     - `get_pattern_health` (public) - **NEW** Analyze runtime health of patterns
+     - `query_known_issues` (public) - **NEW** Search for previously encountered runtime issues
    - Flexible authentication (Workload Identity + Service Account)
    - Cloud Run deployment ready
-   - Coordinates with dependency-orchestrator and pattern-miner
+   - Coordinates with dependency-orchestrator, pattern-miner, and monitoring systems
 
 4. **Modular Skills** (`a2a/skills/`) **NEW in v2.0**
    - **BaseSkill Interface**: Standard skill contract for consistency
@@ -82,7 +87,8 @@ The system now operates in two modes:
    - `repository_info.py` - Repository information skills
    - `a2a/skills/knowledge_management.py` - KB update skills (authenticated)
    - `integration.py` - External agent coordination
-   - `documentation_standards.py` - **NEW** Documentation standards compliance checking
+   - `documentation_standards.py` - Documentation standards compliance checking
+   - `runtime_monitoring.py` - **NEW** Runtime issue tracking and pattern health analysis
    - Adding new skill = create one file (not edit multiple files)
 
 5. **Core Modules** (`core/`)
@@ -144,6 +150,16 @@ Dev-Nexus integrates with external AI agents to provide comprehensive project ma
      - Performs detailed code comparison
      - Provides implementation recommendations
      - Tracks pattern evolution over time
+
+3. **Monitoring Systems** (e.g., agentic-log-attacker)
+   - **Role**: Production monitoring and issue detection
+   - **Communication**: One-way via A2A (monitoring → dev-nexus)
+   - **Key Functions**:
+     - Reports runtime issues detected in production
+     - Links issues to patterns automatically
+     - Provides log snippets and performance metrics
+     - Tracks issue resolution
+   - **Integration Point**: `a2a/skills/runtime_monitoring.py`
 
 **Integration Data Flow:**
 
@@ -234,6 +250,8 @@ Stored as `knowledge_base.json` in a separate repository with enhanced schema:
         "authentication_methods": [],
         "compliance_standards": []
       },
+      "runtime_issues": [],
+      "production_metrics": {},
       "history": []
     }
   }
@@ -241,6 +259,33 @@ Stored as `knowledge_base.json` in a separate repository with enhanced schema:
 ```
 
 **Automatic Migration**: V1 knowledge bases are automatically migrated to v2 on first load
+
+### Runtime Monitoring & Pattern Health (NEW)
+
+The system now includes runtime monitoring capabilities that connect production issues to patterns:
+
+**Runtime Issues Tracking**:
+- Record production issues detected by monitoring systems (e.g., agentic-log-attacker)
+- Link issues to specific patterns in the knowledge base
+- Track issue severity, service type, root cause, and suggested fixes
+- Find similar issues across repositories
+
+**Pattern Health Analysis**:
+- Calculate health scores for patterns based on production issues
+- Analyze pattern reliability across all repositories using it
+- Identify problematic patterns that need review
+- Track issue trends over time
+
+**Integration with Monitoring Systems**:
+- `add_runtime_issue` skill accepts issue reports from monitoring agents
+- Issues are automatically linked to patterns
+- Pattern health can be queried before adopting patterns
+- Supports Cloud Run, Cloud Functions, Cloud Build, GCE, GKE, App Engine
+
+**Schema Fields**:
+- `runtime_issues[]` - List of production issues per repository
+- `production_metrics{}` - Performance metrics at time of issue
+- Pattern objects can include `runtime_issues[]` for pattern-specific tracking
 
 ## Development Commands
 
@@ -355,6 +400,14 @@ curl ${SERVICE_URL}/.well-known/agent.json
 - Safe to re-run for secret rotation or updates
 - If secrets are already configured and unchanged, skip directly to `deploy.sh`
 - To verify existing secrets: `gcloud secrets list --project=$GCP_PROJECT_ID`
+
+**Cloud Build CI Notes:**
+- Uses `cloudbuild.yaml` for automated deployment
+- Environment variables are written to `env.yaml` file to avoid comma-parsing issues
+- `--set-secrets` argument is quoted to ensure proper parsing
+- Supports dynamic CORS origins including Vercel preview deployments
+- Build substitutions are expanded before creating env file
+- Machine type: N1_HIGHCPU_8 for faster builds
 
 ### Dashboard Usage
 

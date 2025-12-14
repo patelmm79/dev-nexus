@@ -21,6 +21,12 @@ build/
 .env
 .env.local
 
+# Service Account Credentials (NEVER COMMIT!)
+service-account.json
+**/service-account.json
+*.json.key
+auth-proxy/service-account*.json
+
 # Local analysis results
 pattern_analysis.json
 knowledge_base.json
