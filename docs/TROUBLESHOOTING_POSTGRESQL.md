@@ -148,6 +148,44 @@ gcloud logging read \
 
 ## Common Fixes
 
+### Issue: PostgreSQL VM Cannot Download Packages (Network Unreachable)
+
+**Symptom**: Startup script fails with errors like:
+```
+Cannot initiate the connection to us-central1.gce.archive.ubuntu.com:80
+Network is unreachable
+```
+
+**Root Cause**: VM has no internet access. No external IP and no Cloud NAT configured.
+
+**Quick Fix - Add External IP Temporarily**:
+```bash
+# Stop VM
+gcloud compute instances stop dev-nexus-postgres --zone=us-central1-a --project=globalbiting-dev
+
+# Add external IP
+gcloud compute instances add-access-config dev-nexus-postgres \
+  --zone=us-central1-a \
+  --project=globalbiting-dev
+
+# Start VM (startup script runs again)
+gcloud compute instances start dev-nexus-postgres --zone=us-central1-a --project=globalbiting-dev
+
+# Monitor progress
+gcloud compute instances tail-serial-port-output dev-nexus-postgres \
+  --zone=us-central1-a \
+  --project=globalbiting-dev
+```
+
+**Permanent Fix - Use Cloud NAT** (now included in Terraform):
+- Cloud NAT allows private VMs to access internet for package downloads
+- No external IP needed (more secure)
+- Terraform now includes `google_compute_router_nat` resource
+
+After fixing internet access, PostgreSQL will install automatically via startup script.
+
+## Common Fixes
+
 ### Issue: Wrong Terraform Attribute for VPC Connector
 
 **Symptom**: Terraform applies successfully but `gcloud run services describe` shows `vpcAccess: null`
