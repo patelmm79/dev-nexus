@@ -59,7 +59,7 @@ curl $SERVICE_URL/health
 The Terraform configuration has been updated with:
 
 1. **Explicit `depends_on`** to ensure proper ordering
-2. **Correct connector reference** using `self_link` for Cloud Run v2 API
+2. **Correct connector reference** using manual string interpolation
 
 ```hcl
 resource "google_cloud_run_v2_service" "pattern_discovery_agent" {
@@ -70,15 +70,15 @@ resource "google_cloud_run_v2_service" "pattern_discovery_agent" {
 
   template {
     vpc_access {
-      # IMPORTANT: Use self_link for Cloud Run v2, not id
-      connector = google_vpc_access_connector.postgres_connector.self_link
+      # IMPORTANT: Manually construct full path for Cloud Run v2
+      connector = "projects/${var.project_id}/locations/${var.region}/connectors/${google_vpc_access_connector.postgres_connector.name}"
       egress    = "PRIVATE_RANGES_ONLY"
     }
   }
 }
 ```
 
-**Key Fix**: Changed from `.id` to `.self_link` for the VPC connector reference. Cloud Run v2 requires the full resource path (e.g., `projects/PROJECT/locations/REGION/connectors/NAME`), which is provided by `self_link`.
+**Key Fix**: Manually construct the full resource path. Cloud Run v2 requires exact format: `projects/PROJECT/locations/REGION/connectors/NAME`
 
 ### Re-apply Terraform
 
@@ -148,36 +148,68 @@ gcloud logging read \
 
 ## Common Fixes
 
-### Issue: Wrong Terraform Attribute (`.id` vs `.self_link`)
+### Issue: Wrong Terraform Attribute for VPC Connector
 
 **Symptom**: Terraform applies successfully but `gcloud run services describe` shows `vpcAccess: null`
 
-**Root Cause**: Using `.id` instead of `.self_link` for VPC connector reference in Cloud Run v2 service.
+**Root Cause**: Using `.id` or `.self_link` attributes don't work reliably. Must manually construct the full resource path.
 
 **Fix**: Update `terraform/main.tf`:
 ```hcl
-# WRONG - uses .id
+# WRONG - uses .id or .self_link (unreliable)
 vpc_access {
   connector = google_vpc_access_connector.postgres_connector.id
   egress    = "PRIVATE_RANGES_ONLY"
 }
 
-# CORRECT - uses .self_link
+# CORRECT - manually construct full path
 vpc_access {
-  connector = google_vpc_access_connector.postgres_connector.self_link
+  connector = "projects/${var.project_id}/locations/${var.region}/connectors/${google_vpc_access_connector.postgres_connector.name}"
   egress    = "PRIVATE_RANGES_ONLY"
 }
 ```
 
-**Why**: Cloud Run v2 API requires the full resource path format:
-- `.self_link` returns: `projects/PROJECT/locations/REGION/connectors/NAME` ✅
-- `.id` returns: short reference (insufficient for v2 API) ❌
+**Why**: Cloud Run v2 API requires the exact full resource path format:
+- Format: `projects/PROJECT_ID/locations/REGION/connectors/CONNECTOR_NAME`
+- Resource attributes (`.id`, `.self_link`) don't always provide correct format
+- Manual string interpolation ensures correct format ✅
 
 **Apply Fix**:
 ```bash
 cd terraform
 terraform apply
 ```
+
+### Issue: 403 Forbidden on Health Check
+
+**Symptom**: `curl $SERVICE_URL/health` returns "403 Forbidden" error
+
+**Root Cause**: Cloud Run service requires authentication (default: `allow_unauthenticated = false`)
+
+**Option 1: Enable Public Access (Development)**
+
+Update `terraform/terraform.tfvars`:
+```hcl
+allow_unauthenticated = true
+```
+
+Then apply:
+```bash
+cd terraform
+terraform apply
+```
+
+**Option 2: Use Authenticated Requests (Production)**
+
+Generate an identity token and include in request:
+```bash
+TOKEN=$(gcloud auth print-identity-token)
+curl -H "Authorization: Bearer $TOKEN" $SERVICE_URL/health
+```
+
+**Note**: These are two separate authentication controls:
+- `allow_unauthenticated` (Terraform) - Controls Cloud Run IAM access
+- `REQUIRE_AUTH_FOR_WRITE` (env var) - Controls A2A skill-level auth
 
 ### Issue: VPC Connector Not Ready
 ```bash
