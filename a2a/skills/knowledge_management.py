@@ -12,7 +12,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 from a2a.skills.base import BaseSkill, SkillGroup
-from schemas.knowledge_base_v2 import LessonLearned, DependencyInfo
+from schemas.knowledge_base_v2 import LessonLearned, DependencyInfo, DeploymentInfo
 
 
 class AddLessonLearnedSkill(BaseSkill):
@@ -303,6 +303,81 @@ class UpdateDependencyInfoSkill(BaseSkill):
                 "success": False,
                 "error": f"Failed to update dependency info: {str(e)}"
             }
+
+
+class AddDeploymentInfoSkill(BaseSkill):
+    """Add or create repository deployment information"""
+
+    def __init__(self, kb_manager):
+        self.kb_manager = kb_manager
+
+    @property
+    def skill_id(self) -> str:
+        return "add_deployment_info"
+
+    @property
+    def skill_name(self) -> str:
+        return "Add Deployment Info"
+
+    @property
+    def skill_description(self) -> str:
+        return "Add or initialize deployment information for a repository"
+
+    @property
+    def tags(self) -> List[str]:
+        return ["deployment", "repository", "metadata"]
+
+    @property
+    def requires_authentication(self) -> bool:
+        return True
+
+    @property
+    def input_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "repository": {"type": "string", "description": "Repository name 'owner/repo'"},
+                "deployment_info": {"type": "object", "description": "DeploymentInfo object as JSON"}
+            },
+            "required": ["repository", "deployment_info"]
+        }
+
+    @property
+    def examples(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "input": {
+                    "repository": "patelmm79/my-service",
+                    "deployment_info": {
+                        "ci_cd_platform": "github_actions",
+                        "infrastructure": {"cloud_run_service": "pattern-discovery-agent"},
+                        "deployment_frequency": "daily"
+                    }
+                },
+                "description": "Add deployment metadata for a repository"
+            }
+        ]
+
+    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            repository = input_data.get("repository")
+            deployment_payload = input_data.get("deployment_info", {})
+
+            if not repository or not deployment_payload:
+                return {"success": False, "error": "Missing 'repository' or 'deployment_info'"}
+
+            # Construct DeploymentInfo model (pydantic will validate)
+            deployment_info = DeploymentInfo(**deployment_payload)
+
+            success = self.kb_manager.add_deployment_info(repository, deployment_info)
+
+            if success:
+                return {"success": True, "message": f"Deployment info added for {repository}", "repository": repository}
+            else:
+                return {"success": False, "error": "Failed to add deployment info"}
+
+        except Exception as e:
+            return {"success": False, "error": f"Failed to add deployment info: {str(e)}"}
 
 
 class KnowledgeManagementSkills(SkillGroup):
