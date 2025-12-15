@@ -33,6 +33,7 @@ steps:
         POSTGRES_PORT: "5432"
         POSTGRES_DB: "devnexus"
         POSTGRES_USER: "devnexus"
+        ORCHESTRATOR_URL: "https://architecture-kb-orchestrator-75l7mntama-uc.a.run.app"
         EOF
 
         # Quote the --set-secrets value to ensure it's passed as a single arg
