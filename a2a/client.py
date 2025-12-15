@@ -9,6 +9,7 @@ import json
 import requests
 from typing import Dict, Any, Optional
 from datetime import datetime
+import logging
 
 
 class A2AClient:
@@ -127,6 +128,9 @@ class ExternalAgentRegistry:
         """Initialize registry from environment variables"""
         self.agents = {}
 
+        # Logger for external agent discovery and health checks
+        self._logger = logging.getLogger("a2a.external_agent_registry")
+
         # Register dependency-orchestrator
         orchestrator_url = os.environ.get('ORCHESTRATOR_URL')
         if orchestrator_url:
@@ -142,6 +146,22 @@ class ExternalAgentRegistry:
                 agent_url=pattern_miner_url,
                 auth_token=os.environ.get('PATTERN_MINER_TOKEN')
             )
+
+        # Log discovered agents for debugging
+        if self.agents:
+            for name, client in self.agents.items():
+                try:
+                    self._logger.info(
+                        "Registered external agent '%s' -> %s (auth=%s)",
+                        name,
+                        getattr(client, 'agent_url', 'unknown'),
+                        bool(getattr(client, 'auth_token', None))
+                    )
+                except Exception:
+                    # Don't raise on logging
+                    pass
+        else:
+            self._logger.info("No external agents configured (ORCHESTRATOR_URL/PATTERN_MINER_URL unset)")
 
     def get_agent(self, agent_name: str) -> Optional[A2AClient]:
         """
@@ -171,7 +191,14 @@ class ExternalAgentRegistry:
         Returns:
             Dictionary mapping agent name to health status
         """
-        return {
-            name: client.health_check()
-            for name, client in self.agents.items()
-        }
+        status: Dict[str, bool] = {}
+        for name, client in self.agents.items():
+            try:
+                healthy = client.health_check()
+                status[name] = healthy
+                self._logger.info("Health check for external agent '%s': %s", name, healthy)
+            except Exception as e:
+                status[name] = False
+                self._logger.warning("Health check for external agent '%s' failed: %s", name, e)
+
+        return status
