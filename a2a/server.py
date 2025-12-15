@@ -329,10 +329,9 @@ async def health_check():
         "skills": registry.get_skill_ids()
     }
 
-    # Add database health if enabled
-    db = get_db()
-    if db.enabled:
-        db_health = await db.health_check()
+    # Add database health if enabled (use the actual db_manager instance)
+    if db_manager.enabled:
+        db_health = await db_manager.health_check()
         health_data["database"] = db_health
         health_data["database_type"] = "postgresql"
         health_data["pgvector_enabled"] = db_health.get("pgvector_version") is not None
