@@ -58,15 +58,71 @@ This setup deploys a self-hosted PostgreSQL database on GCP Compute Engine with:
 │  Cloud Storage                                  │
 │  - Compressed SQL backups                       │
 │  - 30-day retention                             │
-└─────────────────────────────────────────────────┘
-                  │ Audit Trail
-                  │
-┌─────────────────▼───────────────────────────────┐
-│  GitHub Repository (knowledge_base.json)        │
-│  - Version control                              │
-│  - Compliance/audit                             │
+│  - Audit trail and disaster recovery            │
 └─────────────────────────────────────────────────┘
 ```
+
+**Note:** As of v2.0.0, GitHub JSON storage has been removed. PostgreSQL is the single source of truth.
+
+## Current Integration Status (v2.0.0)
+
+**✅ Fully Integrated** - All components use PostgreSQL:
+
+### Core Services
+- **PostgresRepository** (`core/postgres_repository.py`) - Data access layer for all database operations
+- **DatabaseManager** (`core/database.py`) - Connection pool management with asyncpg
+- **No KnowledgeBaseManager** - JSON-based manager completely removed
+
+### A2A Skills Using PostgreSQL
+All 13 skills read/write directly to PostgreSQL:
+
+**Pattern Query Skills:**
+- `query_patterns` - Search patterns using PostgreSQL queries
+- `get_cross_repo_patterns` - Aggregate patterns across repositories
+
+**Repository Info Skills:**
+- `get_repository_list` - Query repositories table
+- `get_deployment_info` - Load repository metadata from PostgreSQL
+
+**Knowledge Management Skills (Write Operations):**
+- `add_lesson_learned` - Insert into lessons_learned table
+- `update_dependency_info` - Update repository_relationships
+- `add_deployment_info` - Insert deployment metadata
+
+**Runtime Monitoring Skills:**
+- `add_runtime_issue` - Track runtime issues
+- `get_pattern_health` - Query issue counts
+- `query_known_issues` - Search runtime_issues table
+
+**Integration Skills:**
+- `health_check_external` - Check external agents
+
+**Documentation Skills:**
+- `check_documentation_standards` - Validate docs
+- `validate_documentation_update` - Check doc updates
+
+### Environment Configuration
+
+**Required Environment Variables:**
+```bash
+# PostgreSQL Connection (REQUIRED)
+USE_POSTGRESQL=true
+POSTGRES_HOST=10.8.0.2  # Internal VM IP
+POSTGRES_PORT=5432
+POSTGRES_DB=devnexus
+POSTGRES_USER=devnexus
+POSTGRES_PASSWORD=<from-secret-manager>
+
+# Optional Connection Pool Settings
+POSTGRES_MIN_CONNECTIONS=5
+POSTGRES_MAX_CONNECTIONS=20
+```
+
+**Application Behavior:**
+- If `USE_POSTGRESQL=false` or not set, application **refuses to start**
+- Connection pool initialized at startup
+- Health check verifies PostgreSQL connectivity
+- All skills fail gracefully if database unavailable
 
 ## Database Schema
 
@@ -552,18 +608,32 @@ python scripts/migrate_json_to_postgres.py \
 psql -h 10.8.0.2 -U devnexus -d devnexus -c "SELECT COUNT(*) FROM repositories;"
 ```
 
-### Hybrid Mode (Recommended Initially)
+### ⚠️ PostgreSQL is REQUIRED
 
-Keep both GitHub JSON and PostgreSQL:
-- Write to both systems
-- Read from PostgreSQL (fast queries)
-- GitHub JSON as audit trail and backup
+**As of v2.0.0, JSON storage has been completely removed.**
+
+The application will refuse to start without PostgreSQL:
+```python
+# In server.py startup event
+if not db_manager.enabled:
+    raise RuntimeError("PostgreSQL must be enabled. Set USE_POSTGRESQL=true")
+```
+
+**All data is stored in PostgreSQL:**
+- ✅ Patterns and decisions
+- ✅ Repository metadata
+- ✅ Lessons learned
+- ✅ Deployment info
+- ✅ Dependency relationships
+- ✅ Runtime issues
+
+**No fallback to JSON** - PostgreSQL is the single source of truth.
 
 ## Next Steps
 
-1. ✅ **Deploy infrastructure** (you're here!)
-2. 🔄 **Update application code** to use PostgreSQL
-3. 🔄 **Migrate existing JSON data**
+1. ✅ **Deploy infrastructure** (this guide)
+2. ✅ **Application already uses PostgreSQL** (v2.0.0+)
+3. 🔄 **Migrate existing JSON data** (if upgrading from v1.x)
 4. ✅ **Generate embeddings** for existing patterns
 5. ✅ **Build frontend** with vector similarity features
 6. ✅ **Set up monitoring** alerts
