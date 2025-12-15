@@ -65,40 +65,60 @@ class DatabaseManager:
             logger.warning("Database pool already exists")
             return
 
-        try:
-            logger.info(
-                f"Connecting to PostgreSQL at {self.host}:{self.port}/{self.database}"
-            )
+        # Try connecting with exponential backoff to tolerate transient network/startup races
+        max_attempts = 6
+        delay = 1
 
-            self.pool = await asyncpg.create_pool(
-                host=self.host,
-                port=self.port,
-                database=self.database,
-                user=self.user,
-                password=self.password,
-                min_size=self.min_size,
-                max_size=self.max_size,
-                command_timeout=60,
-                server_settings={
-                    "application_name": "dev-nexus-a2a",
-                },
-            )
-
-            # Verify pgvector extension is available
-            async with self.pool.acquire() as conn:
-                result = await conn.fetchrow(
-                    "SELECT extversion FROM pg_extension WHERE extname = 'vector'"
+        for attempt in range(1, max_attempts + 1):
+            try:
+                logger.info(
+                    f"Connecting to PostgreSQL at {self.host}:{self.port}/{self.database} (attempt {attempt}/{max_attempts})"
                 )
-                if result:
-                    logger.info(f"pgvector extension detected: v{result['extversion']}")
-                else:
-                    logger.warning("pgvector extension not found")
 
-            logger.info("Database connection pool established")
+                self.pool = await asyncpg.create_pool(
+                    host=self.host,
+                    port=self.port,
+                    database=self.database,
+                    user=self.user,
+                    password=self.password,
+                    min_size=self.min_size,
+                    max_size=self.max_size,
+                    command_timeout=60,
+                    server_settings={
+                        "application_name": "dev-nexus-a2a",
+                    },
+                )
 
-        except Exception as e:
-            logger.error(f"Failed to connect to PostgreSQL: {e}")
-            raise
+                # Verify pgvector extension is available
+                async with self.pool.acquire() as conn:
+                    result = await conn.fetchrow(
+                        "SELECT extversion FROM pg_extension WHERE extname = 'vector'"
+                    )
+                    if result:
+                        logger.info(f"pgvector extension detected: v{result['extversion']}")
+                    else:
+                        logger.warning("pgvector extension not found")
+
+                logger.info("Database connection pool established")
+                return
+
+            except Exception as e:
+                logger.error(f"Failed to connect to PostgreSQL (attempt {attempt}): {e}")
+                # Close pool if partially created
+                try:
+                    if self.pool is not None:
+                        await self.pool.close()
+                        self.pool = None
+                except Exception:
+                    pass
+
+                if attempt == max_attempts:
+                    logger.error("Exceeded max connection attempts to PostgreSQL — giving up")
+                    raise
+
+                logger.info(f"Retrying in {delay}s...")
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 30)
 
     async def disconnect(self) -> None:
         """Close connection pool"""
