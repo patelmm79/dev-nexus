@@ -185,27 +185,34 @@ app.add_middleware(AuthMiddleware, config=auth_config)
 async def startup_event():
     """Initialize services on startup"""
     try:
-        # Initialize PostgreSQL connection (REQUIRED - JSON storage removed)
+        # Initialize PostgreSQL connection if enabled. Do not abort startup on failure –
+        # allow the service to start in a degraded mode so health checks and other
+        # diagnostics remain available while we fix infra.
         if db_manager.enabled:
             print("Initializing PostgreSQL connection...")
-            await db_manager.connect()
-            health = await db_manager.health_check()
-            if health["status"] == "healthy":
-                print(f"✓ PostgreSQL connected: {health.get('version', 'unknown')}")
-                if health.get("pgvector_version"):
-                    print(f"✓ pgvector v{health['pgvector_version']} available")
-                print("✓ PostgresRepository initialized (JSON storage disabled)")
-            else:
-                print(f"⚠ PostgreSQL health check failed: {health}")
-                raise RuntimeError("PostgreSQL health check failed")
+            try:
+                await db_manager.connect()
+                health = await db_manager.health_check()
+                if health["status"] == "healthy":
+                    print(f"✓ PostgreSQL connected: {health.get('version', 'unknown')}")
+                    if health.get("pgvector_version"):
+                        print(f"✓ pgvector v{health['pgvector_version']} available")
+                    print("✓ PostgresRepository initialized (JSON storage disabled)")
+                else:
+                    print(f"⚠ PostgreSQL health check failed: {health}")
+                    print("Continuing startup in degraded mode (PostgreSQL unavailable)")
+                    db_manager.enabled = False
+            except Exception as e:
+                print(f"ERROR: PostgreSQL initialization error: {e}")
+                print("Continuing startup in degraded mode (PostgreSQL unavailable)")
+                db_manager.enabled = False
         else:
-            print("ERROR: PostgreSQL is disabled (USE_POSTGRESQL=false)")
-            print("JSON storage has been removed. PostgreSQL is REQUIRED!")
-            raise RuntimeError("PostgreSQL must be enabled. Set USE_POSTGRESQL=true")
+            print("PostgreSQL is disabled (USE_POSTGRESQL=false). Starting in degraded mode with JSON storage removed.")
+            # Do not raise; allow the app to start so we can access health endpoints and logs
     except Exception as e:
-        print(f"FATAL: Failed to initialize PostgreSQL: {e}")
-        print("Cannot start server without PostgreSQL. JSON storage has been removed.")
-        raise
+        # Any unexpected error should not prevent the server from starting; log and continue
+        print(f"Unexpected error during startup DB init: {e}")
+        db_manager.enabled = False
 
 
 @app.on_event("shutdown")
