@@ -59,7 +59,7 @@ The system now operates in two modes:
    - **Dynamic AgentCard**: Generated from skill registry (not hardcoded)
    - **Thin Coordinator**: 250 lines (reduced from 445 lines)
    - Publishes AgentCard at `/.well-known/agent.json`
-   - 13 skills for comprehensive agent coordination:
+   - 14 skills for comprehensive agent coordination:
      - `query_patterns` (public) - Search for similar patterns
      - `get_deployment_info` (public) - Get deployment/infrastructure info
      - `add_lesson_learned` (authenticated) - Record lessons learned
@@ -73,6 +73,7 @@ The system now operates in two modes:
      - `add_runtime_issue` (authenticated) - **NEW** Record runtime issues from production monitoring
      - `get_pattern_health` (public) - **NEW** Analyze runtime health of patterns
      - `query_known_issues` (public) - **NEW** Search for previously encountered runtime issues
+     - `trigger_deep_analysis` (authenticated) - **NEW** Trigger pattern-miner for deep code analysis
    - Flexible authentication (Workload Identity + Service Account)
    - Cloud Run deployment ready
    - Coordinates with dependency-orchestrator, pattern-miner, and monitoring systems
@@ -86,7 +87,7 @@ The system now operates in two modes:
    - `pattern_query.py` - Pattern search skills
    - `repository_info.py` - Repository information skills
    - `a2a/skills/knowledge_management.py` - KB update skills (authenticated)
-   - `integration.py` - External agent coordination
+   - `integration.py` - External agent coordination and deep analysis triggering
    - `documentation_standards.py` - Documentation standards compliance checking
    - `runtime_monitoring.py` - **NEW** Runtime issue tracking and pattern health analysis
    - Adding new skill = create one file (not edit multiple files)
@@ -97,6 +98,7 @@ The system now operates in two modes:
    - `core/similarity_finder.py` - Enhanced similarity detection
    - `integration_service.py` - Bidirectional A2A coordination with external agents
    - `core/documentation_standards_checker.py` - **NEW** Documentation standards compliance checker
+   - `core/database.py` - **NEW** PostgreSQL connection with exponential backoff retry logic
    - Shared by both GitHub Actions CLI and A2A server
 
 5. **Enhanced Knowledge Base v2** (`schemas/`) **NEW**
@@ -143,13 +145,15 @@ Dev-Nexus integrates with external AI agents to provide comprehensive project ma
      - Records update outcomes as lessons learned in dev-nexus
    - **Integration Point**: `core/integration_service.py`
 
-2. **pattern-miner** (Future)
+2. **pattern-miner** (Active)
    - **Role**: Deep code analysis and pattern comparison
-   - **Communication**: Request-response via A2A
+   - **Communication**: Request-response via A2A protocol
    - **Key Functions**:
-     - Performs detailed code comparison
-     - Provides implementation recommendations
+     - Performs detailed code comparison on demand
+     - Provides implementation recommendations based on focus areas
      - Tracks pattern evolution over time
+     - Triggered via `trigger_deep_analysis` skill
+   - **Integration Point**: `a2a/skills/integration.py` (TriggerDeepAnalysisSkill)
 
 3. **Monitoring Systems** (e.g., agentic-log-attacker)
    - **Role**: Production monitoring and issue detection
@@ -305,6 +309,26 @@ source venv/bin/activate  # Unix
 
 ### Running A2A Server Locally
 
+**Environment Setup:**
+
+Required environment variables:
+- `ANTHROPIC_API_KEY` - From console.anthropic.com (required)
+- `GITHUB_TOKEN` - For knowledge base access (required)
+- `USE_POSTGRESQL` - Set to "true" to enable PostgreSQL backend (optional, defaults to SQLite)
+
+PostgreSQL-specific variables (when `USE_POSTGRESQL=true`):
+- `POSTGRES_HOST` - PostgreSQL server hostname (e.g., "localhost")
+- `POSTGRES_PORT` - PostgreSQL port (default: 5432)
+- `POSTGRES_DB` - Database name (e.g., "devnexus")
+- `POSTGRES_USER` - Database user (e.g., "devnexus")
+- `POSTGRES_PASSWORD` - Database password
+
+External agent integration (optional):
+- `ORCHESTRATOR_URL` - URL to dependency-orchestrator service (e.g., `https://orchestrator.run.app`)
+- `ORCHESTRATOR_TOKEN` - API token for orchestrator authentication
+- `PATTERN_MINER_URL` - URL to pattern-miner service
+- `PATTERN_MINER_TOKEN` - API token for pattern-miner authentication
+
 ```bash
 # Set up environment
 cp .env.example .env
@@ -371,6 +395,13 @@ cp scripts/precommit_checker.py .git/hooks/pre-commit
 
 ### Deploying A2A Server to Cloud Run
 
+**Infrastructure Architecture:**
+
+The A2A Server can run in multiple deployment configurations:
+1. **Standalone on Cloud Run** - FastAPI service with external PostgreSQL
+2. **With PostgreSQL VM** - Dedicated GCE VM with persistent storage for database
+3. **Hybrid Mode** - Cloud Run service communicating with separate PostgreSQL infrastructure
+
 ```bash
 # Set up GCP
 export GCP_PROJECT_ID="your-project-id"
@@ -382,6 +413,11 @@ export KNOWLEDGE_BASE_REPO="patelmm79/dev-nexus"
 # If secrets already exist, it will add new versions instead of failing
 export GITHUB_TOKEN="ghp_xxxxx"
 export ANTHROPIC_API_KEY="sk-ant-xxxxx"
+export ORCHESTRATOR_URL="https://orchestrator-url.run.app"  # Optional
+export ORCHESTRATOR_TOKEN="token-xxx"  # Optional
+export PATTERN_MINER_URL="https://pattern-miner-url.run.app"  # Optional
+export PATTERN_MINER_TOKEN="token-xxx"  # Optional
+
 bash scripts/setup-secrets.sh
 
 # Deploy to Cloud Run
@@ -395,11 +431,27 @@ curl ${SERVICE_URL}/health
 curl ${SERVICE_URL}/.well-known/agent.json
 ```
 
+**Environment Variables for Cloud Run:**
+- `USE_POSTGRESQL` - Set to "true" to use external PostgreSQL (default: SQLite)
+- `POSTGRES_HOST` - PostgreSQL server address (required if USE_POSTGRESQL=true)
+- `POSTGRES_PORT` - PostgreSQL port (default: 5432)
+- `POSTGRES_DB` - Database name
+- `POSTGRES_USER` - Database user
+- `POSTGRES_PASSWORD` - Database password (from Secret Manager)
+- `KNOWLEDGE_BASE_REPO` - GitHub knowledge base repository
+- `GITHUB_TOKEN` - GitHub API token (from Secret Manager)
+- `ANTHROPIC_API_KEY` - Claude API key (from Secret Manager)
+- `ORCHESTRATOR_URL` - External orchestrator service URL
+- `ORCHESTRATOR_TOKEN` - Orchestrator authentication token
+- `PATTERN_MINER_URL` - Pattern miner service URL
+- `PATTERN_MINER_TOKEN` - Pattern miner authentication token
+
 **Secret Management Notes:**
 - `setup-secrets.sh` automatically handles existing secrets by adding new versions
 - Safe to re-run for secret rotation or updates
 - If secrets are already configured and unchanged, skip directly to `deploy.sh`
 - To verify existing secrets: `gcloud secrets list --project=$GCP_PROJECT_ID`
+- Secrets are automatically injected as environment variables during Cloud Run deployment
 
 **Cloud Build CI Notes:**
 - Uses `cloudbuild.yaml` for automated deployment
@@ -408,6 +460,13 @@ curl ${SERVICE_URL}/.well-known/agent.json
 - Supports dynamic CORS origins including Vercel preview deployments
 - Build substitutions are expanded before creating env file
 - Machine type: N1_HIGHCPU_8 for faster builds
+
+**PostgreSQL VM Setup** (optional, for persistent database):
+- Terraform configuration creates dedicated GCE VM with persistent disk
+- PostgreSQL runs on separate VM for data persistence and scalability
+- Startup scripts handle disk formatting, mounting, and PostgreSQL initialization
+- Connection resilience: Server handles transient connection failures with exponential backoff
+- See `terraform/` directory for infrastructure configuration
 
 ### Dashboard Usage
 
@@ -418,6 +477,78 @@ Open `pattern_dashboard.html` in a browser and load `knowledge_base.json` to vis
 - Redundancy metrics
 
 ## Key Implementation Details
+
+### Database Resilience (PostgreSQL Connection)
+
+The `core/database.py` module implements connection resilience with exponential backoff:
+- **Retry Strategy**: Up to 6 connection attempts with exponential backoff (1s → 2s → 4s → 8s → 16s → 30s)
+- **Purpose**: Tolerates transient network failures and PostgreSQL startup races during Cloud Run deployment
+- **Behavior**:
+  - Initial delay: 1 second
+  - Exponential multiplier: 2x per attempt
+  - Maximum delay: 30 seconds (capped)
+  - Total retry window: ~60 seconds across all attempts
+- **Error Handling**: Returns connection with descriptive error if all retries exhausted
+- **Use Cases**: Handles temporary unavailability during infrastructure initialization, network glitches, and service restarts
+
+**Connection pooling** is handled by SQLAlchemy when `USE_POSTGRESQL=true`. For development, SQLite is used by default (no retry logic needed).
+
+### PostgreSQL Persistent Storage (GCP Infrastructure)
+
+The system uses persistent disks on Google Cloud Platform to ensure data preservation across VM lifecycle events:
+
+**Persistent Disk Configuration** (managed by Terraform):
+- **Separate Data Disk**: Dedicated persistent disk (`dev-nexus-postgres-data`) for PostgreSQL data
+- **Disk Size**: Configurable (default: 100GB)
+- **Auto-Formatting**: Disk is automatically formatted and mounted to `/mnt/postgres-data` on first boot
+- **Mount Point**: PostgreSQL data directory configured at `/mnt/postgres-data`
+- **Boot Disk**: Separate 20GB boot disk for system files and OS
+- **Persistence**: Data survives VM deletion, recreation, and updates
+
+**Data Preservation Guarantees:**
+- PostgreSQL data persists across VM restarts
+- Data retained during infrastructure scaling operations
+- Data preserved during upgrade cycles
+- Manual backup: Can create GCP snapshots of persistent disk for recovery
+
+**Terraform Implementation** (`terraform/postgres.tf`):
+- Creates persistent disk resource with specified size
+- Configures automatic mounting via startup script
+- Uses `fstab` entries for persistent mount across reboots
+- Provides smart formatting logic (checks if disk already formatted)
+
+**Startup Process**:
+1. VM boots with persistent disk attached
+2. Startup script checks disk format status
+3. If unformatted: Creates filesystem and mounts
+4. If formatted: Verifies mount point exists and mounts disk
+5. PostgreSQL starts with data directory on persistent disk
+
+### External Agent Registry Logging
+
+The system includes enhanced logging for external agent discovery and health monitoring:
+
+**Registry Initialization** (`a2a/client.py`):
+- On startup, ExternalAgentRegistry logs discovered agents
+- Output includes: agent name, URL, and authentication status
+- Logs all configured external agents (dependency-orchestrator, pattern-miner, monitoring systems)
+- Indicates which agents have tokens configured for authentication
+
+**Health Check Logging**:
+- Periodically checks health of configured external agents
+- Logs success/failure status with timestamps
+- Tracks response times and availability status
+- Helps diagnose integration issues before they affect operations
+
+**Debug Output**:
+- "No agents configured" message if registry is empty
+- Detailed error messages if agent URLs are malformed or unreachable
+- Useful for troubleshooting external service integration problems
+
+**Integration Monitoring**:
+- Log messages appear in Cloud Run logs for deployed instances
+- Local development shows logs to console output
+- Helps identify when external services become unavailable
 
 ### Pattern Extraction Logic
 
@@ -451,9 +582,17 @@ Ignores noise files via `_is_meaningful_file()`:
 
 Each monitored repository needs:
 - `ANTHROPIC_API_KEY` - From console.anthropic.com (required)
+- `GITHUB_TOKEN` - Automatically provided by GitHub Actions (required)
 - `DISCORD_WEBHOOK_URL` - For notifications (optional)
 - `KNOWLEDGE_BASE_REPO` - Format: "username/dev-nexus" (optional)
-- `GITHUB_TOKEN` - Automatically provided by GitHub Actions
+
+For Cloud Run deployment, also configure in GCP Secret Manager:
+- `ANTHROPIC_API_KEY` - Claude API key
+- `GITHUB_TOKEN` - GitHub personal access token
+- `ORCHESTRATOR_URL` - URL to dependency-orchestrator service (if using integration)
+- `ORCHESTRATOR_TOKEN` - Authentication token for orchestrator
+- `PATTERN_MINER_URL` - URL to pattern-miner service (if using deep analysis)
+- `PATTERN_MINER_TOKEN` - Authentication token for pattern-miner
 
 ### Adjusting Sensitivity
 
