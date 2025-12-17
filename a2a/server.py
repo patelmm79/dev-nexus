@@ -34,6 +34,7 @@ from a2a.skills.knowledge_management import KnowledgeManagementSkills
 from a2a.skills.integration import IntegrationSkills
 from a2a.skills.documentation_standards import DocumentationStandardsSkills
 from a2a.skills.runtime_monitoring import RuntimeMonitoringSkills
+from a2a.skills.activity import ActivitySkills
 
 # Load configuration
 config = load_config()
@@ -87,6 +88,11 @@ for skill in doc_standards_skills.get_skills():
 # Register runtime monitoring skills
 runtime_monitoring_skills = RuntimeMonitoringSkills(postgres_repo)
 for skill in runtime_monitoring_skills.get_skills():
+    registry.register(skill)
+
+# Register activity timeline skills
+activity_skills = ActivitySkills(postgres_repo)
+for skill in activity_skills.get_skills():
     registry.register(skill)
 
 # Initialize executor with registry

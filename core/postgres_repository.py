@@ -492,3 +492,176 @@ class PostgresRepository:
         # For now, log a warning that this operation is not fully implemented
         logger.warning("PostgresRepository.save() called - complex operation, skipping")
         return True
+
+    async def get_recent_actions(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        action_types: Optional[List[str]] = None,
+        repository_filter: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Get recent actions across all activity types in chronological order
+
+        Args:
+            limit: Maximum number of actions to return
+            offset: Number of actions to skip (for pagination)
+            action_types: Filter by action types ['analysis', 'lesson', 'deployment', 'runtime_issue']
+            repository_filter: Filter by repository name (optional)
+
+        Returns:
+            Dictionary with:
+            - actions: List of normalized action objects
+            - total_count: Total count matching filters (for pagination)
+            - returned: Number of actions returned
+        """
+        try:
+            # Default to all action types if not specified
+            if action_types is None:
+                action_types = ['analysis', 'lesson', 'deployment', 'runtime_issue']
+
+            # Build UNION query to combine all action types
+            union_parts = []
+
+            # 1. Analysis History
+            if 'analysis' in action_types:
+                union_parts.append("""
+                    SELECT
+                        'analysis' as action_type,
+                        r.name as repository,
+                        ah.analyzed_at as timestamp,
+                        ah.commit_sha as reference_id,
+                        jsonb_build_object(
+                            'commit_sha', ah.commit_sha,
+                            'patterns_count', ah.patterns_count,
+                            'decisions_count', ah.decisions_count,
+                            'components_count', ah.components_count
+                        ) as metadata
+                    FROM analysis_history ah
+                    JOIN repositories r ON ah.repo_id = r.id
+                """)
+
+            # 2. Lessons Learned
+            if 'lesson' in action_types:
+                union_parts.append("""
+                    SELECT
+                        'lesson' as action_type,
+                        r.name as repository,
+                        ll.date as timestamp,
+                        ll.title as reference_id,
+                        jsonb_build_object(
+                            'category', ll.category,
+                            'impact', ll.impact,
+                            'description', ll.description
+                        ) as metadata
+                    FROM lessons_learned ll
+                    JOIN repositories r ON ll.repo_id = r.id
+                """)
+
+            # 3. Deployment Scripts
+            if 'deployment' in action_types:
+                union_parts.append("""
+                    SELECT
+                        'deployment' as action_type,
+                        r.name as repository,
+                        ds.created_at as timestamp,
+                        ds.name as reference_id,
+                        jsonb_build_object(
+                            'name', ds.name,
+                            'description', ds.description
+                        ) as metadata
+                    FROM deployment_scripts ds
+                    JOIN repositories r ON ds.repo_id = r.id
+                """)
+
+            # 4. Runtime Issues
+            if 'runtime_issue' in action_types:
+                union_parts.append("""
+                    SELECT
+                        'runtime_issue' as action_type,
+                        r.name as repository,
+                        ri.detected_at as timestamp,
+                        ri.issue_id as reference_id,
+                        jsonb_build_object(
+                            'issue_type', ri.issue_type,
+                            'severity', ri.severity,
+                            'service_type', ri.service_type,
+                            'pattern_reference', ri.pattern_reference,
+                            'status', ri.status,
+                            'log_snippet', SUBSTRING(ri.log_snippet, 1, 200)
+                        ) as metadata
+                    FROM runtime_issues ri
+                    JOIN repositories r ON ri.repo_id = r.id
+                """)
+
+            if not union_parts:
+                return {
+                    "actions": [],
+                    "total_count": 0,
+                    "returned": 0
+                }
+
+            # Combine with UNION ALL
+            union_query = " UNION ALL ".join(union_parts)
+
+            # Add repository filter if specified
+            where_clause = ""
+            params = []
+            if repository_filter:
+                where_clause = "WHERE repository = $1"
+                params.append(repository_filter)
+
+            # Count query
+            count_query = f"""
+                SELECT COUNT(*) as total
+                FROM ({union_query}) as combined_actions
+                {where_clause}
+            """
+
+            # Get total count
+            if params:
+                count_row = await self.db.fetchrow(count_query, *params)
+            else:
+                count_row = await self.db.fetchrow(count_query)
+            total_count = count_row['total'] if count_row else 0
+
+            # Main query with ORDER BY and pagination
+            main_query = f"""
+                SELECT *
+                FROM ({union_query}) as combined_actions
+                {where_clause}
+                ORDER BY timestamp DESC
+                LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}
+            """
+
+            params.extend([limit, offset])
+
+            # Execute query
+            rows = await self.db.fetch(main_query, *params)
+
+            # Convert to list of dicts
+            actions = [
+                {
+                    "action_type": row['action_type'],
+                    "repository": row['repository'],
+                    "timestamp": row['timestamp'].isoformat() if row['timestamp'] else None,
+                    "reference_id": row['reference_id'],
+                    "metadata": row['metadata']
+                }
+                for row in rows
+            ]
+
+            return {
+                "actions": actions,
+                "total_count": total_count,
+                "returned": len(actions)
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get recent actions: {e}")
+            return {
+                "actions": [],
+                "total_count": 0,
+                "returned": 0,
+                "error": str(e)
+            }
