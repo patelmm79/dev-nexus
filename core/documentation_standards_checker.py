@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 from github import Github
 from github.Repository import Repository
+from github.GithubException import UnknownObjectException, GithubException
 
 
 class DocumentationStandardsChecker:
@@ -46,7 +47,20 @@ class DocumentationStandardsChecker:
             Dictionary with check results
         """
         try:
-            repo = self.github_client.get_repo(repository)
+            try:
+                repo = self.github_client.get_repo(repository)
+            except UnknownObjectException:
+                return {
+                    "success": False,
+                    "error": f"Repository not found: {repository} (404). Verify repository name and token permissions.",
+                    "repository": repository
+                }
+            except GithubException as ge:
+                return {
+                    "success": False,
+                    "error": f"GitHub API error when accessing repository: {str(ge)}",
+                    "repository": repository
+                }
 
             # Get documentation files to check
             doc_files = self._get_documentation_files(repo, check_all_docs)
