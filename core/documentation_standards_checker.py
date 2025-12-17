@@ -5,12 +5,30 @@ Checks repositories for conformity to documentation standards defined in DOCUMEN
 This service enforces the standards established for the dev-nexus project.
 """
 
+import logging
 import re
 from typing import Dict, Any, List, Optional
 from pathlib import Path
-from github import Github
-from github.Repository import Repository
-from github.GithubException import UnknownObjectException, GithubException
+try:
+    from github import Github
+    from github.Repository import Repository
+except Exception:
+    # PyGithub may not be installed in minimal test environments; provide fallbacks
+    Github = None
+    class Repository:
+        pass
+try:
+    from github.GithubException import UnknownObjectException, GithubException
+except Exception:
+    # Provide lightweight fallbacks for environments without PyGithub installed
+    class UnknownObjectException(Exception):
+        pass
+
+    class GithubException(Exception):
+        pass
+
+# Logger for runtime diagnostics
+logger = logging.getLogger(__name__)
 
 
 class DocumentationStandardsChecker:
@@ -49,13 +67,15 @@ class DocumentationStandardsChecker:
         try:
             try:
                 repo = self.github_client.get_repo(repository)
-            except UnknownObjectException:
+            except UnknownObjectException as uoe:
+                logger.warning("Repository not found (404) when accessing %s: %s", repository, uoe)
                 return {
                     "success": False,
                     "error": f"Repository not found: {repository} (404). Verify repository name and token permissions.",
                     "repository": repository
                 }
             except GithubException as ge:
+                logger.error("GitHub API error when accessing %s: %s", repository, ge)
                 return {
                     "success": False,
                     "error": f"GitHub API error when accessing repository: {str(ge)}",
@@ -141,6 +161,7 @@ class DocumentationStandardsChecker:
 
         except Exception as e:
             import traceback
+            logger.exception("Unhandled exception checking repository %s: %s", repository, e)
             return {
                 "success": False,
                 "error": f"Failed to check repository: {str(e)}",
