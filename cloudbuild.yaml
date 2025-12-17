@@ -27,6 +27,7 @@ steps:
         GCP_PROJECT_ID: "${PROJECT_ID}"
         GCP_REGION: "${_REGION}"
         KNOWLEDGE_BASE_REPO: "${_KNOWLEDGE_BASE_REPO}"
+        USE_POSTGRESQL: "true"
         CORS_ORIGINS: "http://localhost:3000,http://localhost:5173,https://*.vercel.app,https://dev-nexus-frontend-noig7bsv5-milan-patels-projects-187b35de.vercel.app"
         EOF
 
