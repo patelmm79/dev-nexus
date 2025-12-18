@@ -98,8 +98,49 @@ class DatabaseManager:
                 logger.info(
                     f"Connecting to PostgreSQL at {self.host}:{self.port}/{self.database} (attempt {attempt}/{max_attempts})"
                 )
+                logger.info(f"asyncpg ssl argument: {ssl_arg!r}")
 
-                self.pool = await asyncpg.create_pool(
+                try:
+                    self.pool = await asyncpg.create_pool(
+                        host=self.host,
+                        port=self.port,
+                        database=self.database,
+                        user=self.user,
+                        password=self.password,
+                        ssl=ssl_arg,
+                        min_size=self.min_size,
+                        max_size=self.max_size,
+                        command_timeout=60,
+                        server_settings={
+                            "application_name": "dev-nexus-a2a",
+                        },
+                    )
+                except Exception as e:
+                    # If this looks like an SSL negotiation failure, try a one-time fallback without SSL
+                    err_text = str(e).lower()
+                    logger.error(f"asyncpg.create_pool failed (ssl={ssl_arg!r}): {e}")
+                    if ssl_arg not in (False,) and ("ssl" in err_text or "certificate" in err_text or "tls" in err_text):
+                        logger.warning("Detected SSL-related failure, retrying once with ssl=False")
+                        try:
+                            self.pool = await asyncpg.create_pool(
+                                host=self.host,
+                                port=self.port,
+                                database=self.database,
+                                user=self.user,
+                                password=self.password,
+                                ssl=False,
+                                min_size=self.min_size,
+                                max_size=self.max_size,
+                                command_timeout=60,
+                                server_settings={
+                                    "application_name": "dev-nexus-a2a",
+                                },
+                            )
+                        except Exception as e2:
+                            logger.error(f"Fallback (ssl=False) also failed: {e2}")
+                            raise
+                    else:
+                        raise
                     host=self.host,
                     port=self.port,
                     database=self.database,
