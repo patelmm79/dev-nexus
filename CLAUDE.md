@@ -393,6 +393,55 @@ chmod +x scripts/precommit_checker.py
 cp scripts/precommit_checker.py .git/hooks/pre-commit
 ```
 
+### Multi-Environment Terraform Setup (dev/staging/prod)
+
+The infrastructure now supports multiple environments with isolated state and secrets:
+
+**Environment-Specific Configuration:**
+- **Development (dev)**: Unauthenticated, scale-to-zero, free tier resources, e2-micro database
+- **Staging (staging)**: Authenticated, moderate resources, separate service accounts for integration testing
+- **Production (prod)**: Authenticated, high availability (always-on), 2vCPU, monitoring enabled
+
+**State Isolation (Important):**
+- Each environment has separate Terraform state in GCS
+- Backend prefix: `dev-nexus/dev`, `dev-nexus/staging`, `dev-nexus/prod`
+- Initialize with: `terraform init -backend-config="prefix=dev-nexus/dev"`
+- Prevents accidental destruction of other environments
+
+**Secret Isolation:**
+- Dev secrets: `dev-nexus-dev_GITHUB_TOKEN`, `dev-nexus-dev_ANTHROPIC_API_KEY`, etc.
+- Staging secrets: `dev-nexus-staging_*`
+- Prod secrets: `dev-nexus-prod_*`
+- Prevents collisions when using shared GCP project
+
+**Quick Start:**
+```bash
+cd terraform
+
+# Initialize development environment
+bash scripts/terraform-init.sh dev
+terraform plan -var-file="dev.tfvars" -out=tfplan
+terraform apply tfplan
+
+# Switch to staging
+terraform init -backend-config="prefix=dev-nexus/staging" -reconfigure
+terraform plan -var-file="staging.tfvars" -out=tfplan
+terraform apply tfplan
+
+# Switch to production (after review!)
+terraform init -backend-config="prefix=dev-nexus/prod" -reconfigure
+terraform plan -var-file="prod.tfvars" -out=tfplan
+terraform show tfplan  # Always review prod changes
+terraform apply tfplan
+```
+
+**Files:**
+- `terraform/dev.tfvars` - Development configuration (unauthenticated, scale-to-zero)
+- `terraform/staging.tfvars` - Staging configuration (authenticated, moderate resources)
+- `terraform/prod.tfvars` - Production configuration (high availability, monitoring)
+- `terraform/scripts/terraform-init.sh` - Initialization script for multi-environment setup
+- [MULTI_ENV_SETUP.md](MULTI_ENV_SETUP.md) - Complete multi-environment documentation
+
 ### Deploying A2A Server to Cloud Run
 
 **Infrastructure Architecture:**

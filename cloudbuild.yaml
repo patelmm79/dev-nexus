@@ -54,8 +54,11 @@ steps:
           --vpc-egress private-ranges-only
 
 # Substitution variables (can be overridden at build time)
+# Multi-environment support: pass _ENVIRONMENT to deploy to dev/staging/prod
+# Example: gcloud builds submit --substitutions="_REGION=us-central1,_ENVIRONMENT=prod"
 substitutions:
   _REGION: us-central1
+  _ENVIRONMENT: dev
   _KNOWLEDGE_BASE_REPO: patelmm79/dev-nexus
 
 # Images to push to Container Registry
