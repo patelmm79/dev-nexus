@@ -26,6 +26,7 @@ steps:
         cat > env.yaml <<EOF
         GCP_PROJECT_ID: "${PROJECT_ID}"
         GCP_REGION: "${_REGION}"
+        ENVIRONMENT: "${_ENVIRONMENT}"
         KNOWLEDGE_BASE_REPO: "${_KNOWLEDGE_BASE_REPO}"
         USE_POSTGRESQL: "true"
         POSTGRES_HOST: "10.8.0.2"
