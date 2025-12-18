@@ -12,6 +12,7 @@
 - **[🚀 Quick Start](#-quick-start)** - Get started in 5 minutes
 - **[☁️ Cloud Deployment](#️-deployment-to-cloud-run)** - Deploy to Google Cloud Run
 - **[📖 Documentation Index](#-documentation-index)** - Complete documentation guide
+- **[🌍 Multi-Environment Setup](#-multi-environment-setup)** - NEW: Dev/Staging/Prod deployment
 
 ### Main Sections
 1. [Overview](#overview)
@@ -852,6 +853,13 @@ This is your personal system, but you can extend it:
 | **[README.md](README.md)** | Project overview and quick start | Everyone |
 | **[QUICK_START.md](QUICK_START.md)** | Detailed setup instructions | New users |
 | **[CLAUDE.md](CLAUDE.md)** | AI assistant guidance | Claude Code |
+
+### 🌍 Multi-Environment Terraform Setup (NEW)
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[MULTI_ENV_SETUP.md](MULTI_ENV_SETUP.md)** | Multi-environment deployment (dev/staging/prod) | DevOps/Teams |
+| **[TERRAFORM_UNIFIED_INIT.md](TERRAFORM_UNIFIED_INIT.md)** | Unified init across multiple projects | DevOps |
+| **[TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md)** | State backup, recovery, and isolation | DevOps/Operators |
 
 ### Deployment & Operations
 | Document | Purpose | Audience |

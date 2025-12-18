@@ -19,11 +19,15 @@ Choose your deployment approach:
 - **Cons:** Manual state tracking, no rollback
 
 ### 🏗️ Terraform (Recommended for Production)
-- **Best for:** Production, teams, infrastructure as code
+- **Best for:** Production, teams, infrastructure as code, multi-environment deployments
 - **Time to deploy:** 10-15 minutes (first time)
 - **Prerequisites:** Terraform, gcloud CLI, API keys
-- **Documentation:** [terraform/README.md](terraform/README.md)
-- **Pros:** State management, rollback, declarative, team collaboration, includes PostgreSQL setup
+- **Documentation:**
+  - [MULTI_ENV_SETUP.md](MULTI_ENV_SETUP.md) - **Recommended:** Multi-environment setup (dev/staging/prod)
+  - [terraform/README.md](terraform/README.md) - Terraform configuration guide
+  - [TERRAFORM_UNIFIED_INIT.md](TERRAFORM_UNIFIED_INIT.md) - Unified initialization pattern
+  - [TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md) - State backup and recovery
+- **Pros:** State management, rollback, declarative, team collaboration, includes PostgreSQL, multi-environment support
 - **Cons:** Requires Terraform knowledge
 
 ### Detailed Comparison
