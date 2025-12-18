@@ -305,6 +305,33 @@ class PostgresRepository:
             logger.error(f"[ADD_DEPLOYMENT] Failed to add deployment info for {repository_name}: {e}", exc_info=True)
             return False
 
+    async def add_repository(self, name: str, problem_domain: str = "") -> int:
+        """
+        Add a new repository to the database
+
+        Args:
+            name: Repository name (format: "owner/repo")
+            problem_domain: Problem domain or description (optional)
+
+        Returns:
+            Repository ID
+        """
+        try:
+            logger.info(f"[ADD_REPO] Adding repository: {name} (domain: {problem_domain})")
+            query = """
+                INSERT INTO repositories (name, problem_domain, created_at, updated_at)
+                VALUES ($1, $2, NOW(), NOW())
+                RETURNING id
+            """
+            row = await self.db.fetchrow(query, name, problem_domain)
+            repo_id = row['id']
+            logger.info(f"[ADD_REPO] Repository '{name}' added with ID {repo_id}")
+            return repo_id
+
+        except Exception as e:
+            logger.error(f"[ADD_REPO] Failed to add repository '{name}': {e}", exc_info=True)
+            raise
+
     # Helper methods
 
     async def _ensure_repository(self, repository_name: str) -> int:
