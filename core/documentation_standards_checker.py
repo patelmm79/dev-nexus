@@ -5,31 +5,12 @@ Checks repositories for conformity to documentation standards defined in DOCUMEN
 This service enforces the standards established for the dev-nexus project.
 """
 
-import logging
-import json
 import re
 from typing import Dict, Any, List, Optional
 from pathlib import Path
-try:
-    from github import Github
-    from github.Repository import Repository
-except Exception:
-    # PyGithub may not be installed in minimal test environments; provide fallbacks
-    Github = None
-    class Repository:
-        pass
-try:
-    from github.GithubException import UnknownObjectException, GithubException
-except Exception:
-    # Provide lightweight fallbacks for environments without PyGithub installed
-    class UnknownObjectException(Exception):
-        pass
-
-    class GithubException(Exception):
-        pass
-
-# Logger for runtime diagnostics
-logger = logging.getLogger(__name__)
+from github import Github
+from github.Repository import Repository
+from github.GithubException import UnknownObjectException, GithubException
 
 
 class DocumentationStandardsChecker:
@@ -65,19 +46,16 @@ class DocumentationStandardsChecker:
         Returns:
             Dictionary with check results
         """
-        logger.info("Starting documentation check for repository: %s", repository)
         try:
             try:
                 repo = self.github_client.get_repo(repository)
-            except UnknownObjectException as uoe:
-                logger.warning("Repository not found (404) when accessing %s: %s", repository, uoe)
+            except UnknownObjectException:
                 return {
                     "success": False,
                     "error": f"Repository not found: {repository} (404). Verify repository name and token permissions.",
                     "repository": repository
-                result_dict = {
+                }
             except GithubException as ge:
-                logger.error("GitHub API error when accessing %s: %s", repository, ge)
                 return {
                     "success": False,
                     "error": f"GitHub API error when accessing repository: {str(ge)}",
@@ -92,26 +70,15 @@ class DocumentationStandardsChecker:
                     "success": False,
                     "error": "No documentation files found",
                     "repository": repository
-
-                # Log a concise summary line for Cloud Run / Stackdriver
-                logger.info("Documentation check complete for %s: status=%s score=%s violations=%d", repository, status, round(compliance_score, 2), total_violations)
-                # Also emit a JSON blob to stdout for easier searching in logs
-                try:
-                    print(json.dumps({"type": "documentation_check_result", "repository": repository, "status": status, "compliance_score": round(compliance_score, 2), "total_violations": total_violations}))
-                except Exception:
-                    pass
-
-                return result_dict
-
-            except Exception as e:
-            # Check each file
-                logger.exception("Unhandled exception checking repository %s: %s", repository, e)
-                return {
-                    "success": False,
-                    "error": f"Failed to check repository: {str(e)}",
-                    "traceback": traceback.format_exc(),
-                    "repository": repository
                 }
+
+            # Check each file
+            results = []
+            for file_path, content, priority in doc_files:
+                file_result = self._check_file(file_path, content, priority, repo)
+                results.append(file_result)
+
+            # Check README for license badge (additional check)
             readme_license_violations = self._check_readme_license_badge(repo)
             if readme_license_violations:
                 # Add to README.md result if it exists
@@ -174,7 +141,6 @@ class DocumentationStandardsChecker:
 
         except Exception as e:
             import traceback
-            logger.exception("Unhandled exception checking repository %s: %s", repository, e)
             return {
                 "success": False,
                 "error": f"Failed to check repository: {str(e)}",
