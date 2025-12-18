@@ -360,6 +360,9 @@ steps:
 
 ## Related Documentation
 
-- [MULTI_ENV_SETUP.md](MULTI_ENV_SETUP.md) - Environment-specific configuration
+- [MULTI_ENV_SETUP.md](MULTI_ENV_SETUP.md) - Environment-specific configuration and deployment
 - [TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md) - State backup/recovery
+- [terraform/README.md](terraform/README.md) - Terraform infrastructure guide
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Cloud Run deployment guide
+- [CLAUDE.md](CLAUDE.md) - Dev-nexus project guidelines
 - [resume-customizer README_DEPLOY.md](https://github.com/patelmm79/resume-customizer/blob/main/README_DEPLOY.md) - Reference implementation

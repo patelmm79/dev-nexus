@@ -512,9 +512,12 @@ Key scripts:
 
 ## Related Documentation
 
+- [TERRAFORM_UNIFIED_INIT.md](TERRAFORM_UNIFIED_INIT.md) - Unified initialization across projects
 - [TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md) - State backup/recovery
+- [terraform/README.md](terraform/README.md) - Terraform infrastructure guide
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Cloud Run deployment guide
+- [CLAUDE.md](CLAUDE.md) - Dev-nexus project guidelines
 - [Terraform Google Provider](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
 - [Google Cloud Run Documentation](https://cloud.google.com/run/docs)
 - [Google Secret Manager](https://cloud.google.com/secret-manager)
 - [Terraform Cloud Storage Backend](https://www.terraform.io/language/settings/backends/gcs)
-- [CLAUDE.md](CLAUDE.md) - Dev-nexus project guidelines

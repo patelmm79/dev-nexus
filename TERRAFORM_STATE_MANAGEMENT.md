@@ -498,7 +498,9 @@ gcloud logging read --limit=50 \
 
 ## Related Documentation
 
-- [MULTI_ENV_SETUP.md](MULTI_ENV_SETUP.md) - Environment configuration
+- [TERRAFORM_UNIFIED_INIT.md](TERRAFORM_UNIFIED_INIT.md) - Unified initialization pattern with backend configuration
+- [MULTI_ENV_SETUP.md](MULTI_ENV_SETUP.md) - Environment configuration and deployment
+- [terraform/README.md](terraform/README.md) - Terraform infrastructure guide
 - [CLAUDE.md](CLAUDE.md) - Overall project architecture
 - [Terraform GCS Backend](https://www.terraform.io/language/settings/backends/gcs)
 - [GCS Versioning & Lifecycle](https://cloud.google.com/storage/docs/object-lock/overview)
