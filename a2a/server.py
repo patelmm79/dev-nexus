@@ -7,6 +7,7 @@ Uses modular skill architecture with dynamic skill registration.
 
 import os
 import sys
+import asyncio
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -181,38 +182,51 @@ app.add_middleware(AuthMiddleware, config=auth_config)
 # Startup and Shutdown Events
 # ============================================
 
+async def initialize_database_background():
+    """Initialize PostgreSQL connection in background (non-blocking)
+
+    Runs asynchronously without blocking the server startup.
+    If connection fails, the service still starts and retries on each request.
+    """
+    if not db_manager.enabled:
+        print("PostgreSQL is disabled (USE_POSTGRESQL=false)")
+        return
+
+    try:
+        print("[BACKGROUND] Initializing PostgreSQL connection...")
+        await db_manager.connect()
+        health = await db_manager.health_check()
+        if health["status"] == "healthy":
+            print(f"[BACKGROUND] ✓ PostgreSQL connected: {health.get('version', 'unknown')}")
+            if health.get("pgvector_version"):
+                print(f"[BACKGROUND] ✓ pgvector v{health['pgvector_version']} available")
+            print("[BACKGROUND] ✓ PostgresRepository ready")
+        else:
+            print(f"[BACKGROUND] ⚠ PostgreSQL health check failed: {health}")
+            print("[BACKGROUND] Will retry on next request")
+    except Exception as e:
+        print(f"[BACKGROUND] ⚠ PostgreSQL connection failed (will retry on requests): {e}")
+        # Don't disable db_manager; let requests retry when they hit the pool
+
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize services on startup"""
-    try:
-        # Initialize PostgreSQL connection if enabled. Do not abort startup on failure –
-        # allow the service to start in a degraded mode so health checks and other
-        # diagnostics remain available while we fix infra.
-        if db_manager.enabled:
-            print("Initializing PostgreSQL connection...")
-            try:
-                await db_manager.connect()
-                health = await db_manager.health_check()
-                if health["status"] == "healthy":
-                    print(f"✓ PostgreSQL connected: {health.get('version', 'unknown')}")
-                    if health.get("pgvector_version"):
-                        print(f"✓ pgvector v{health['pgvector_version']} available")
-                    print("✓ PostgresRepository initialized (JSON storage disabled)")
-                else:
-                    print(f"⚠ PostgreSQL health check failed: {health}")
-                    print("Continuing startup in degraded mode (PostgreSQL unavailable)")
-                    db_manager.enabled = False
-            except Exception as e:
-                print(f"ERROR: PostgreSQL initialization error: {e}")
-                print("Continuing startup in degraded mode (PostgreSQL unavailable)")
-                db_manager.enabled = False
-        else:
-            print("PostgreSQL is disabled (USE_POSTGRESQL=false). Starting in degraded mode with JSON storage removed.")
-            # Do not raise; allow the app to start so we can access health endpoints and logs
-    except Exception as e:
-        # Any unexpected error should not prevent the server from starting; log and continue
-        print(f"Unexpected error during startup DB init: {e}")
-        db_manager.enabled = False
+    """Initialize services on startup (fast, non-blocking)
+
+    Spawns database initialization in background so app can start immediately.
+    This allows health checks to work while PostgreSQL is initializing.
+    """
+    print("Starting Pattern Discovery Agent A2A Server...")
+    print(f"✓ Skills registered: {len(registry)}")
+    print(f"✓ Config loaded: CORS={len(config.cors_origins)} origins")
+    print(f"✓ PostgreSQL enabled: {db_manager.enabled}")
+
+    # Spawn background task to connect to PostgreSQL
+    # This doesn't block the app from starting/listening on port 8080
+    if db_manager.enabled:
+        asyncio.create_task(initialize_database_background())
+
+    print("✓ A2A Server ready - listening on port 8080")
 
 
 @app.on_event("shutdown")
