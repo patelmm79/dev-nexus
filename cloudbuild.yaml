@@ -44,7 +44,9 @@ steps:
           --timeout 300 \
           --allow-unauthenticated \
           --env-vars-file env.yaml \
-          --set-secrets 'GITHUB_TOKEN=GITHUB_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest'
+          --set-secrets 'GITHUB_TOKEN=GITHUB_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest' \
+          --vpc-connector dev-nexus-connector \
+          --vpc-egress private-ranges-only
 
 # Substitution variables (can be overridden at build time)
 substitutions:
