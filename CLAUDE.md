@@ -441,6 +441,16 @@ terraform apply tfplan
 - `terraform/prod.tfvars` - Production configuration (high availability, monitoring)
 - `terraform/scripts/terraform-init.sh` - Initialization script for multi-environment setup
 - [MULTI_ENV_SETUP.md](MULTI_ENV_SETUP.md) - Complete multi-environment documentation
+- [TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md) - State capture, backup, and recovery
+
+**State Management (Critical):**
+- Remote state stored in GCS with automatic versioning (prevents data loss)
+- Separate state files per environment (dev/staging/prod prefixes)
+- Automatic state locking during terraform apply (prevents concurrent modifications)
+- Manual backup scripts for disaster recovery
+- Setup: `bash scripts/setup-terraform-backend.sh` (one-time)
+- Backup: `bash scripts/backup-terraform-state.sh [env]`
+- Recover: `bash scripts/recover-terraform-state.sh env`
 
 ### Deploying A2A Server to Cloud Run
 

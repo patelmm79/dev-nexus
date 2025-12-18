@@ -500,8 +500,19 @@ gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
 7. **Separate Providers**: Consider separate GCP projects for prod (added security)
 8. **Infrastructure as Code**: All infrastructure changes via Terraform (no manual Cloud Console changes)
 
+## State Management & Backup
+
+For detailed state management, backup, and recovery procedures, see:
+- [TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md) - Complete state lifecycle documentation
+
+Key scripts:
+- `bash scripts/setup-terraform-backend.sh` - Initialize GCS backend (one-time)
+- `bash scripts/backup-terraform-state.sh [env]` - Manual state backup
+- `bash scripts/recover-terraform-state.sh env` - Recover from backup
+
 ## Related Documentation
 
+- [TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md) - State backup/recovery
 - [Terraform Google Provider](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
 - [Google Cloud Run Documentation](https://cloud.google.com/run/docs)
 - [Google Secret Manager](https://cloud.google.com/secret-manager)
