@@ -143,19 +143,6 @@ class DatabaseManager:
                             raise
                     else:
                         raise
-                    host=self.host,
-                    port=self.port,
-                    database=self.database,
-                    user=self.user,
-                    password=self.password,
-                    ssl=ssl_arg,
-                    min_size=self.min_size,
-                    max_size=self.max_size,
-                    command_timeout=60,
-                    server_settings={
-                        "application_name": "dev-nexus-a2a",
-                    },
-                )
 
                 # Verify pgvector extension is available
                 async with self.pool.acquire() as conn:
