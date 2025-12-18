@@ -659,10 +659,12 @@ Deploy dev-nexus as a 24/7 A2A service on Google Cloud Run.
 - Instructions below in this section
 
 **Option 2: Terraform** (Recommended for Production)
-- Infrastructure as code with state management
+- Infrastructure as code with remote state management
 - Better for teams and production environments
-- Includes PostgreSQL infrastructure setup
+- Includes PostgreSQL infrastructure setup with automated backups
+- Disaster recovery: Remote state (survives instance destruction) + daily snapshots
 - See **[terraform/README.md](terraform/README.md)** for complete guide
+- See **[DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)** for backup and recovery procedures
 
 ### Prerequisites (Do This First)
 
@@ -856,6 +858,7 @@ This is your personal system, but you can extend it:
 |----------|---------|----------|
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Cloud Run deployment with bash scripts | DevOps |
 | **[terraform/README.md](terraform/README.md)** | Infrastructure as code deployment guide | DevOps/Teams |
+| **[DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)** | Backup, state management, recovery procedures | DevOps/Operators |
 | **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Comprehensive troubleshooting (50+ scenarios) | Operators |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | System design and components | Architects |
 | **[PRODUCTION_READY.md](PRODUCTION_READY.md)** | Production readiness checklist | DevOps |
