@@ -101,6 +101,8 @@ class DatabaseManager:
                 logger.info(f"asyncpg ssl argument: {ssl_arg!r}")
 
                 try:
+                    # Use min_size=0 to defer connection creation until first request
+                    # Prevents connection attempts during Cloud Build (which has no network access)
                     self.pool = await asyncpg.create_pool(
                         host=self.host,
                         port=self.port,
@@ -108,7 +110,7 @@ class DatabaseManager:
                         user=self.user,
                         password=self.password,
                         ssl=ssl_arg,
-                        min_size=self.min_size,
+                        min_size=0,  # Defer initial connections
                         max_size=self.max_size,
                         command_timeout=60,
                         server_settings={
@@ -129,7 +131,7 @@ class DatabaseManager:
                                 user=self.user,
                                 password=self.password,
                                 ssl=False,
-                                min_size=self.min_size,
+                                min_size=0,  # Defer initial connections
                                 max_size=self.max_size,
                                 command_timeout=60,
                                 server_settings={
