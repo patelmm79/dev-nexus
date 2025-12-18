@@ -402,14 +402,34 @@ The A2A Server can run in multiple deployment configurations:
 2. **With PostgreSQL VM** - Dedicated GCE VM with persistent storage for database
 3. **Hybrid Mode** - Cloud Run service communicating with separate PostgreSQL infrastructure
 
+**Disaster Recovery (NEW):**
+
+All deployments now include automated disaster recovery:
+- **Remote Terraform State**: Stores state in GCS bucket (survives instance destruction)
+- **Automated Disk Snapshots**: Daily snapshots of PostgreSQL persistent disk
+- **Manual Backup Script**: On-demand database backups to GCS
+
+See [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) for complete setup and recovery procedures.
+
+**Deployment Steps:**
+
 ```bash
 # Set up GCP
 export GCP_PROJECT_ID="your-project-id"
 export GCP_REGION="us-central1"
 export KNOWLEDGE_BASE_REPO="patelmm79/dev-nexus"
 
-# Create or update secrets in Secret Manager
-# Note: This script is idempotent - safe to run multiple times
+# 1. Initialize Terraform state backend (one-time)
+bash scripts/setup-terraform-state.sh
+
+cd terraform
+
+# 2. Initialize Terraform with remote GCS backend
+terraform init
+# When prompted about existing state, answer: yes (to migrate local → remote)
+
+# 3. Create secrets in Secret Manager
+# Note: setup-secrets.sh is idempotent - safe to run multiple times
 # If secrets already exist, it will add new versions instead of failing
 export GITHUB_TOKEN="ghp_xxxxx"
 export ANTHROPIC_API_KEY="sk-ant-xxxxx"
@@ -418,17 +438,30 @@ export ORCHESTRATOR_TOKEN="token-xxx"  # Optional
 export PATTERN_MINER_URL="https://pattern-miner-url.run.app"  # Optional
 export PATTERN_MINER_TOKEN="token-xxx"  # Optional
 
+cd ..
 bash scripts/setup-secrets.sh
 
-# Deploy to Cloud Run
+# 4. Deploy to Cloud Run with Terraform
 # If secrets are already configured and unchanged, you can skip setup-secrets.sh
-bash scripts/deploy.sh
+cd terraform
+terraform apply
 
-# Test deployment
+# 5. Test deployment
 SERVICE_URL=$(gcloud run services describe pattern-discovery-agent \
   --region=us-central1 --format="value(status.url)")
 curl ${SERVICE_URL}/health
 curl ${SERVICE_URL}/.well-known/agent.json
+
+# 6. Verify disaster recovery
+# - Check Terraform state in GCS
+gsutil ls gs://terraform-state-${GCP_PROJECT_ID}/dev-nexus/
+
+# - Check disk snapshots policy
+gcloud compute resource-policies describe postgres-daily-snapshots
+
+# - Test backup script
+bash scripts/backup-postgres.sh
+gsutil ls gs://dev-nexus-postgres-backups/
 ```
 
 **Environment Variables for Cloud Run:**
@@ -466,6 +499,11 @@ curl ${SERVICE_URL}/.well-known/agent.json
 - PostgreSQL runs on separate VM for data persistence and scalability
 - Startup scripts handle disk formatting, mounting, and PostgreSQL initialization
 - Connection resilience: Server handles transient connection failures with exponential backoff
+- **Disaster Recovery**:
+  - Persistent disk survives VM recreation
+  - Automatic daily snapshots (2 AM UTC) with 30-day retention
+  - Manual backup script with GCS storage
+  - See [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) for details
 - See `terraform/` directory for infrastructure configuration
 
 ### Dashboard Usage
@@ -492,6 +530,28 @@ The `core/database.py` module implements connection resilience with exponential 
 - **Use Cases**: Handles temporary unavailability during infrastructure initialization, network glitches, and service restarts
 
 **Connection pooling** is handled by SQLAlchemy when `USE_POSTGRESQL=true`. For development, SQLite is used by default (no retry logic needed).
+
+### Infrastructure State Management & Disaster Recovery
+
+Terraform state is managed with remote GCS backend to ensure infrastructure survives temporary instance destruction:
+
+**State Persistence**:
+- Remote state stored in: `gs://terraform-state-{PROJECT_ID}/dev-nexus/`
+- Versioning enabled (keeps 5 versions, deletes non-current after 30 days)
+- Survives instance destruction (state lives in GCS, not on ephemeral VM)
+
+**Data Persistence**:
+- PostgreSQL persistent disk: `dev-nexus-postgres-data` (survives VM recreation)
+- Automatic daily snapshots at 2 AM UTC (30-day retention)
+- On-demand backups via `scripts/backup-postgres.sh`
+
+**Why This Matters**:
+- Running `terraform apply` on temporary instances is safe (state won't be lost)
+- If instance is destroyed, recreate with: `terraform apply` (uses GCS state)
+- If PostgreSQL data is corrupted, restore from snapshot or backup
+- Multiple temporary instances can share state without conflicts
+
+See [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) for complete procedures and troubleshooting.
 
 ### PostgreSQL Persistent Storage (GCP Infrastructure)
 
