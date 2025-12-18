@@ -12,6 +12,7 @@ import os
 import asyncpg
 import logging
 import asyncio
+import ssl
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
@@ -70,6 +71,28 @@ class DatabaseManager:
         max_attempts = 6
         delay = 1
 
+        # Configure SSL behaviour from environment
+        ssl_mode = os.getenv("POSTGRES_SSLMODE", "disable").lower()
+        ssl_no_verify = os.getenv("POSTGRES_SSL_NO_VERIFY", "false").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        ssl_arg = None
+        if ssl_mode in ("disable", "false", "0"):
+            ssl_arg = False
+        elif ssl_mode in ("require", "true", "1"):
+            if ssl_no_verify:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                ssl_arg = ctx
+            else:
+                ssl_arg = ssl.create_default_context()
+        else:
+            # Let asyncpg default behaviour decide
+            ssl_arg = None
+
         for attempt in range(1, max_attempts + 1):
             try:
                 logger.info(
@@ -82,6 +105,7 @@ class DatabaseManager:
                     database=self.database,
                     user=self.user,
                     password=self.password,
+                    ssl=ssl_arg,
                     min_size=self.min_size,
                     max_size=self.max_size,
                     command_timeout=60,
