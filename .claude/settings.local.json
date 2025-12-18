@@ -59,7 +59,9 @@
       "Bash(gcloud run revisions list:*)",
       "Bash(gcloud sql connect:*)",
       "Bash(grep:*)",
-      "Bash(gcloud secrets versions access:*)"
+      "Bash(gcloud secrets versions access:*)",
+      "Bash(bash:*)",
+      "Bash(export GCP_PROJECT_ID=globalbiting-dev)"
     ],
     "deny": [],
     "ask": []

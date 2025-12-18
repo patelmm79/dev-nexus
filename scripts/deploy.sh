@@ -25,21 +25,11 @@ echo "Service:  $SERVICE_NAME"
 echo "KB Repo:  $KNOWLEDGE_BASE_REPO"
 echo
 
-# Get current git commit SHA (or use timestamp if not in git repo)
-if git rev-parse HEAD >/dev/null 2>&1; then
-    COMMIT_SHA=$(git rev-parse --short HEAD)
-else
-    COMMIT_SHA=$(date +%Y%m%d-%H%M%S)
-fi
-
-echo "Image tag: $COMMIT_SHA"
-echo
-
 # Build and deploy using Cloud Build
 echo "Starting Cloud Build..."
 gcloud builds submit \
     --config=cloudbuild.yaml \
-    --substitutions="_REGION=${REGION},_KNOWLEDGE_BASE_REPO=${KNOWLEDGE_BASE_REPO},COMMIT_SHA=${COMMIT_SHA}" \
+    --substitutions="_REGION=${REGION},_KNOWLEDGE_BASE_REPO=${KNOWLEDGE_BASE_REPO}" \
     --project="${PROJECT_ID}"
 
 # Get service URL
