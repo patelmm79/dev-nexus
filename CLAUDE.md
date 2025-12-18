@@ -414,22 +414,22 @@ The infrastructure now supports multiple environments with isolated state and se
 - Prod secrets: `dev-nexus-prod_*`
 - Prevents collisions when using shared GCP project
 
-**Quick Start:**
+**Quick Start (Unified Across All Projects):**
 ```bash
 cd terraform
 
 # Initialize development environment
-bash scripts/terraform-init.sh dev
+bash scripts/terraform-init-unified.sh dev
 terraform plan -var-file="dev.tfvars" -out=tfplan
 terraform apply tfplan
 
-# Switch to staging
-terraform init -backend-config="prefix=dev-nexus/staging" -reconfigure
+# Switch to staging (auto-reconfigures backend)
+bash scripts/terraform-init-unified.sh staging
 terraform plan -var-file="staging.tfvars" -out=tfplan
 terraform apply tfplan
 
 # Switch to production (after review!)
-terraform init -backend-config="prefix=dev-nexus/prod" -reconfigure
+bash scripts/terraform-init-unified.sh prod
 terraform plan -var-file="prod.tfvars" -out=tfplan
 terraform show tfplan  # Always review prod changes
 terraform apply tfplan
@@ -439,7 +439,8 @@ terraform apply tfplan
 - `terraform/dev.tfvars` - Development configuration (unauthenticated, scale-to-zero)
 - `terraform/staging.tfvars` - Staging configuration (authenticated, moderate resources)
 - `terraform/prod.tfvars` - Production configuration (high availability, monitoring)
-- `terraform/scripts/terraform-init.sh` - Initialization script for multi-environment setup
+- `terraform/scripts/terraform-init-unified.sh` - Unified initialization (consistent across all projects)
+- [TERRAFORM_UNIFIED_INIT.md](TERRAFORM_UNIFIED_INIT.md) - Unified initialization across projects
 - [MULTI_ENV_SETUP.md](MULTI_ENV_SETUP.md) - Complete multi-environment documentation
 - [TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md) - State capture, backup, and recovery
 
