@@ -269,7 +269,11 @@ class PostgresRepository:
             True if successful, False otherwise
         """
         try:
+            logger.info(f"[ADD_DEPLOYMENT] Starting for repository: {repository_name}")
+            logger.info(f"[ADD_DEPLOYMENT] Database manager enabled: {self.db.enabled}, pool: {self.db.pool is not None}")
+
             repo_id = await self._ensure_repository(repository_name)
+            logger.info(f"[ADD_DEPLOYMENT] Repository ID: {repo_id}")
 
             # Store deployment info as JSON in deployment_scripts table
             # (This is a simplified approach - could be expanded to use dedicated tables)
@@ -284,6 +288,7 @@ class PostgresRepository:
                     environment_variables = EXCLUDED.environment_variables
             """
 
+            logger.info(f"[ADD_DEPLOYMENT] Executing deployment info insert for repo_id {repo_id}")
             await self.db.execute(
                 query,
                 repo_id,
@@ -293,11 +298,11 @@ class PostgresRepository:
                 json.dumps({})  # environment_variables
             )
 
-            logger.info(f"Added deployment info for {repository_name}")
+            logger.info(f"[ADD_DEPLOYMENT] Successfully added deployment info for {repository_name}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to add deployment info: {e}")
+            logger.error(f"[ADD_DEPLOYMENT] Failed to add deployment info for {repository_name}: {e}", exc_info=True)
             return False
 
     # Helper methods
@@ -312,21 +317,29 @@ class PostgresRepository:
         Returns:
             Repository ID
         """
-        # Check if exists
-        query = "SELECT id FROM repositories WHERE name = $1"
-        row = await self.db.fetchrow(query, repository_name)
+        try:
+            # Check if exists
+            query = "SELECT id FROM repositories WHERE name = $1"
+            logger.info(f"[ENSURE_REPO] Checking if repository '{repository_name}' exists")
+            row = await self.db.fetchrow(query, repository_name)
 
-        if row:
+            if row:
+                logger.info(f"[ENSURE_REPO] Repository '{repository_name}' already exists with ID {row['id']}")
+                return row['id']
+
+            # Create new repository
+            logger.info(f"[ENSURE_REPO] Creating new repository '{repository_name}'")
+            query = """
+                INSERT INTO repositories (name, created_at, updated_at)
+                VALUES ($1, NOW(), NOW())
+                RETURNING id
+            """
+            row = await self.db.fetchrow(query, repository_name)
+            logger.info(f"[ENSURE_REPO] Repository '{repository_name}' created with ID {row['id']}")
             return row['id']
-
-        # Create new repository
-        query = """
-            INSERT INTO repositories (name, created_at, updated_at)
-            VALUES ($1, NOW(), NOW())
-            RETURNING id
-        """
-        row = await self.db.fetchrow(query, repository_name)
-        return row['id']
+        except Exception as e:
+            logger.error(f"[ENSURE_REPO] Failed for '{repository_name}': {e}")
+            raise
 
     async def _get_latest_patterns(self, repo_id: int) -> PatternEntry:
         """Get latest patterns for a repository"""

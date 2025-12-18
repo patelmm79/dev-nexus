@@ -237,6 +237,108 @@ class GetDeploymentInfoSkill(BaseSkill):
             }
 
 
+class AddRepositorySkill(BaseSkill):
+    """Add a new repository to the tracked repositories"""
+
+    def __init__(self, postgres_repo):
+        self.postgres_repo = postgres_repo
+
+    @property
+    def skill_id(self) -> str:
+        return "add_repository"
+
+    @property
+    def skill_name(self) -> str:
+        return "Add Repository"
+
+    @property
+    def skill_description(self) -> str:
+        return "Add a new repository to the tracked repositories list"
+
+    @property
+    def tags(self) -> List[str]:
+        return ["repositories", "management", "add"]
+
+    @property
+    def requires_authentication(self) -> bool:
+        return False
+
+    @property
+    def input_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "repository": {
+                    "type": "string",
+                    "description": "Repository name in format 'owner/repo' (e.g., 'patelmm79/dev-nexus')"
+                },
+                "problem_domain": {
+                    "type": "string",
+                    "description": "Problem domain or project description (optional)"
+                }
+            },
+            "required": ["repository"]
+        }
+
+    @property
+    def examples(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "input": {"repository": "patelmm79/my-api", "problem_domain": "REST API service"},
+                "description": "Add a new repository to track"
+            }
+        ]
+
+    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add a new repository to tracked repositories
+
+        Input:
+            - repository: str - Repository name (format: "owner/repo")
+            - problem_domain: str - Problem domain/description (optional)
+
+        Output:
+            - success: bool - Whether the repository was added
+            - repository: str - Repository name
+            - message: str - Status message
+        """
+        try:
+            repository = input_data.get('repository')
+            problem_domain = input_data.get('problem_domain', '')
+
+            if not repository:
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: 'repository'"
+                }
+
+            if '/' not in repository:
+                return {
+                    "success": False,
+                    "error": "Invalid repository format. Use 'owner/repo'"
+                }
+
+            # Add repository to database
+            repo_id = await self.postgres_repo.add_repository(
+                name=repository,
+                problem_domain=problem_domain
+            )
+
+            return {
+                "success": True,
+                "repository": repository,
+                "repository_id": repo_id,
+                "message": f"Repository '{repository}' added successfully",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to add repository: {str(e)}"
+            }
+
+
 class RepositoryInfoSkills(SkillGroup):
     """Group of repository information skills"""
 
@@ -244,7 +346,8 @@ class RepositoryInfoSkills(SkillGroup):
         super().__init__(postgres_repo=postgres_repo)
         self._skills = [
             GetRepositoryListSkill(postgres_repo),
-            GetDeploymentInfoSkill(postgres_repo)
+            GetDeploymentInfoSkill(postgres_repo),
+            AddRepositorySkill(postgres_repo)
         ]
 
     def get_skills(self) -> List[BaseSkill]:

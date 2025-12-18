@@ -54,7 +54,12 @@
       "Bash(terraform import:*)",
       "Bash(gcloud auth application-default login:*)",
       "Bash(terraform apply:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(gcloud compute networks vpc-access connectors list:*)",
+      "Bash(gcloud run revisions list:*)",
+      "Bash(gcloud sql connect:*)",
+      "Bash(grep:*)",
+      "Bash(gcloud secrets versions access:*)"
     ],
     "deny": [],
     "ask": []
