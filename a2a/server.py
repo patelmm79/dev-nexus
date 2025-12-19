@@ -118,15 +118,32 @@ try:
     # Initialize KnowledgeBaseManager with GitHub client and KB repo
     github_client = Github(config.github_token)
     kb_manager = KnowledgeBaseManager(github_client, config.knowledge_base_repo)
+
+    # Try to initialize VectorCacheManager with PostgreSQL
+    # If PostgreSQL is not available, log warning but continue with graceful degradation
     postgres_url = os.environ.get("DATABASE_URL", "postgresql://localhost/devnexus")
-    vector_manager = VectorCacheManager(postgres_url)
+    try:
+        vector_manager = VectorCacheManager(postgres_url)
+        logger.info("PostgreSQL backend initialized for component sensibility")
+    except Exception as db_error:
+        logger.warning(f"PostgreSQL not available for component sensibility: {db_error}. Skills will work with degraded functionality (no vector caching).")
+        # Create a mock vector manager that doesn't require PostgreSQL
+        class MockVectorCacheManager:
+            def __init__(self, url):
+                self.postgres_url = url
+                self.vector_cache = {}
+            def get_or_create_vector(self, component):
+                return None
+            def find_similar(self, component, top_k=5, min_similarity=0.5):
+                return []
+        vector_manager = MockVectorCacheManager(postgres_url)
 
     component_sensibility_skills = ComponentSensibilitySkills(kb_manager, vector_manager)
     for skill in component_sensibility_skills.get_skills():
         registry.register(skill)
     logger.info("Registered component sensibility skills")
 except Exception as e:
-    logger.warning(f"Failed to register component sensibility skills: {e}")
+    logger.warning(f"Failed to register component sensibility skills: {e}", exc_info=True)
 
 # Initialize executor with registry
 executor = PatternDiscoveryExecutor(registry)
