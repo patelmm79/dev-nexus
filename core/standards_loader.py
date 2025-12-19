@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import logging
+import os
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -77,16 +79,58 @@ class StandardsLoader:
         for category, filepath in self.STANDARDS_MAPPING.items():
             try:
                 file_path = self.repo_root / filepath
-                if not file_path.exists():
-                    logger.warning(f"Standard file not found: {file_path}")
-                    continue
+                content = None
 
-                content = file_path.read_text(encoding='utf-8')
-                parsed = self._parse_standard(category, content)
-                self.standards[category] = parsed
-                logger.info(f"Loaded standard: {category} ({len(parsed.validation_rules)} rules)")
+                # Try local file first
+                if file_path.exists():
+                    content = file_path.read_text(encoding='utf-8')
+                    logger.info(f"Loaded local standard: {category}")
+                else:
+                    # Fall back to GitHub for Cloud Run deployments
+                    logger.info(f"Local file not found, fetching from GitHub: {filepath}")
+                    content = self._fetch_standard_from_github(filepath)
+
+                if content:
+                    parsed = self._parse_standard(category, content)
+                    self.standards[category] = parsed
+                    logger.info(f"Loaded standard: {category} ({len(parsed.validation_rules)} rules)")
+                else:
+                    logger.warning(f"Could not load standard {category} from local or GitHub")
             except Exception as e:
                 logger.error(f"Failed to load standard {category}: {e}")
+
+    def _fetch_standard_from_github(self, filepath: str) -> Optional[str]:
+        """
+        Fetch standard document from GitHub repository
+
+        Used as fallback when local files aren't available (e.g., Cloud Run deployment).
+        Fetches from patelmm79/dev-nexus main branch.
+
+        Args:
+            filepath: Path to file in repository (e.g., "DEPLOYMENT.md" or "docs/LICENSE_STANDARD.md")
+
+        Returns:
+            File content as string, or None if fetch fails
+        """
+        try:
+            github_token = os.environ.get("GITHUB_TOKEN")
+            if not github_token:
+                logger.warning("GITHUB_TOKEN not set, cannot fetch standards from GitHub")
+                return None
+
+            url = f"https://raw.githubusercontent.com/patelmm79/dev-nexus/main/{filepath}"
+            headers = {"Authorization": f"token {github_token}"}
+
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                logger.info(f"Successfully fetched {filepath} from GitHub")
+                return response.text
+            else:
+                logger.warning(f"Failed to fetch {filepath} from GitHub: {response.status_code}")
+                return None
+        except Exception as e:
+            logger.error(f"Error fetching {filepath} from GitHub: {e}")
+            return None
 
     def _parse_standard(self, category: str, content: str) -> ParsedStandard:
         """
