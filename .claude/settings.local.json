@@ -66,7 +66,15 @@
       "Bash(tree:*)",
       "Bash(env)",
       "Bash(gcloud secrets list:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(gcloud builds triggers describe:*)",
+      "Bash(gcloud run deploy:*)",
+      "Bash(__NEW_LINE__ gcloud logging read \"resource.type=cloud_run_revision AND resource.labels.service_name=pattern-discovery-agent AND severity>=WARNING\" --limit=30 --format=\"table(timestamp,severity,textPayload)\" --project=globalbiting-dev)",
+      "Bash(SERVICE_URL=\"https://pattern-discovery-agent-665374072631.us-central1.run.app\")",
+      "Bash(__NEW_LINE__ echo \"Testing detect_misplaced_components skill...\")",
+      "Bash(__NEW_LINE__ git add a2a/skills/component_sensibility.py)",
+      "Bash(__NEW_LINE__ sleep 10)",
+      "Bash(__NEW_LINE__ git add .claude/settings.local.json)"
     ],
     "deny": [],
     "ask": []
