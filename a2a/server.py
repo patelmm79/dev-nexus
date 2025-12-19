@@ -14,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 import logging
 import anthropic
+from github import Github
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -132,7 +133,36 @@ try:
                 return []
         vector_manager = MockVectorCacheManager(postgres_url)
 
-    component_sensibility_skills = ComponentSensibilitySkills(postgres_repo, vector_manager)
+    # Initialize Anthropic client for pattern extraction
+    anthropic_client = None
+    try:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if api_key:
+            anthropic_client = anthropic.Anthropic(api_key=api_key)
+            logger.info("Anthropic client initialized for pattern extraction")
+        else:
+            logger.warning("ANTHROPIC_API_KEY not set - pattern extraction will be disabled")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Anthropic client: {e}")
+
+    # Initialize GitHub client for repository scanning
+    github_client = None
+    try:
+        github_token = os.environ.get("GITHUB_TOKEN")
+        if github_token:
+            github_client = Github(github_token)
+            logger.info("GitHub client initialized for repository scanning")
+        else:
+            logger.warning("GITHUB_TOKEN not set - repository scanning will be disabled")
+    except Exception as e:
+        logger.warning(f"Failed to initialize GitHub client: {e}")
+
+    component_sensibility_skills = ComponentSensibilitySkills(
+        postgres_repo,
+        vector_manager,
+        anthropic_client,
+        github_client
+    )
     for skill in component_sensibility_skills.get_skills():
         registry.register(skill)
     logger.info("Registered component sensibility skills")

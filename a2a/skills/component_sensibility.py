@@ -8,14 +8,19 @@ better used in a different project or as central shared infrastructure.
 
 import logging
 import os
+import json
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from uuid import uuid4
 
+import anthropic
+from github import Github
+
 from a2a.skills.base import BaseSkill, SkillGroup
 from core.component_analyzer import ComponentScanner, VectorCacheManager, CentralityCalculator
 from core.postgres_repository import PostgresRepository
-from schemas.knowledge_base_v2 import ConsolidationRecommendation
+from core.pattern_extractor import PatternExtractor
+from schemas.knowledge_base_v2 import ConsolidationRecommendation, Component
 
 logger = logging.getLogger(__name__)
 
@@ -677,10 +682,19 @@ class ScanRepositoryComponentsSkill(BaseSkill):
     from the frontend Repositories tab.
     """
 
-    def __init__(self, postgres_repo: PostgresRepository, vector_manager: VectorCacheManager):
+    def __init__(
+        self,
+        postgres_repo: PostgresRepository,
+        vector_manager: VectorCacheManager,
+        anthropic_client: Optional[anthropic.Anthropic] = None,
+        github_client: Optional[Github] = None
+    ):
         """Initialize skill with dependencies"""
         self.postgres_repo = postgres_repo
         self.vector_manager = vector_manager
+        self.anthropic_client = anthropic_client
+        self.github_client = github_client
+        self.pattern_extractor = PatternExtractor(anthropic_client) if anthropic_client else None
 
     @property
     def skill_id(self) -> str:
@@ -754,11 +768,81 @@ class ScanRepositoryComponentsSkill(BaseSkill):
                 }
 
             repo_data = kb.repositories[repository]
-            logger.info(f"Processing components in {repository}")
+            logger.info(f"Scanning components in {repository} using pattern extraction")
 
-            # Get components from repo_data (pre-scanned by pattern analyzer)
-            # In A2A server context, we work with already-detected components
-            components = repo_data.components if hasattr(repo_data, 'components') and repo_data.components else []
+            components = []
+
+            # If pattern extractor is available, fetch repo code and extract patterns
+            if self.pattern_extractor and self.github_client:
+                try:
+                    owner, repo = repository.split("/")
+                    gh_repo = self.github_client.get_user(owner).get_repo(repo)
+
+                    # Fetch main branch content
+                    logger.info(f"Fetching repository content from GitHub for {repository}")
+                    contents = gh_repo.get_contents("")
+
+                    # Collect code files
+                    code_files = {}
+                    self._collect_code_files(gh_repo, "", code_files)
+
+                    if code_files:
+                        # Prepare changes dict for pattern extractor
+                        files_changed = []
+                        for filepath, content in list(code_files.items())[:20]:  # Limit to first 20 files
+                            files_changed.append({
+                                "path": filepath,
+                                "change_type": "modified",
+                                "diff": content[:2000]  # Limit content size
+                            })
+
+                        if files_changed:
+                            changes = {
+                                "commit_sha": gh_repo.get_commits()[0].sha if gh_repo.get_commits() else "unknown",
+                                "commit_message": f"Repository analysis for {repository}",
+                                "author": "system",
+                                "timestamp": datetime.now().isoformat(),
+                                "files_changed": files_changed
+                            }
+
+                            # Extract patterns using Claude
+                            logger.info(f"Extracting patterns from {repository}")
+                            pattern_entry = self.pattern_extractor.extract_patterns_with_llm(
+                                changes,
+                                repository
+                            )
+
+                            # Convert reusable_components to Component objects
+                            logger.info(f"Converting {len(pattern_entry.reusable_components)} detected components")
+                            for i, reusable_comp in enumerate(pattern_entry.reusable_components):
+                                component = Component(
+                                    component_id=f"{repository}-{reusable_comp.name}-{i}",
+                                    name=reusable_comp.name,
+                                    component_type="infrastructure" if "util" in reusable_comp.name.lower() else "api_client",
+                                    repository=repository,
+                                    files=reusable_comp.files or [],
+                                    language=reusable_comp.language or "python",
+                                    api_signature=reusable_comp.api_contract,
+                                    imports=[],
+                                    keywords=pattern_entry.keywords,
+                                    description=reusable_comp.description,
+                                    lines_of_code=0,
+                                    cyclomatic_complexity=None,
+                                    public_methods=[],
+                                    first_seen=datetime.now(),
+                                    sync_status="original"
+                                )
+                                components.append(component)
+                    else:
+                        logger.warning(f"No code files found in {repository}")
+
+                except Exception as e:
+                    logger.warning(f"Could not extract patterns from GitHub: {e}. Using existing components.")
+                    components = repo_data.components if hasattr(repo_data, 'components') and repo_data.components else []
+            else:
+                # Fallback: use pre-scanned components from KB
+                logger.info("Pattern extractor not available, using pre-scanned components from KB")
+                components = repo_data.components if hasattr(repo_data, 'components') and repo_data.components else []
 
             logger.info(f"Found {len(components)} components in {repository}")
 
@@ -781,6 +865,7 @@ class ScanRepositoryComponentsSkill(BaseSkill):
                 "repository": repository,
                 "components_found": len(components),
                 "vectors_generated": vectors_generated,
+                "pattern_extraction": "enabled" if self.pattern_extractor else "disabled",
                 "components": [
                     {
                         "name": c.name,
@@ -801,6 +886,32 @@ class ScanRepositoryComponentsSkill(BaseSkill):
                 "error": str(e)
             }
 
+    def _collect_code_files(self, gh_repo, path: str, code_files: Dict[str, str], max_depth: int = 3, depth: int = 0):
+        """Recursively collect code files from GitHub repository"""
+        if depth > max_depth:
+            return
+
+        try:
+            contents = gh_repo.get_contents(path) if path else gh_repo.get_contents("")
+
+            if isinstance(contents, list):
+                for content in contents:
+                    # Skip common non-code directories
+                    if any(skip in content.path for skip in [".git", "node_modules", ".pytest", "__pycache__", "venv", ".github"]):
+                        continue
+
+                    if content.type == "file":
+                        # Collect Python, JS, TS files
+                        if any(content.path.endswith(ext) for ext in [".py", ".js", ".ts", ".go", ".java"]):
+                            try:
+                                code_files[content.path] = content.decoded_content.decode("utf-8", errors="ignore")
+                            except Exception as e:
+                                logger.debug(f"Could not decode {content.path}: {e}")
+                    elif content.type == "dir":
+                        self._collect_code_files(gh_repo, content.path, code_files, max_depth, depth + 1)
+        except Exception as e:
+            logger.debug(f"Could not read directory {path}: {e}")
+
 
 class ComponentSensibilitySkills(SkillGroup):
     """
@@ -816,17 +927,28 @@ class ComponentSensibilitySkills(SkillGroup):
     - pattern-miner: Deep code comparison and behavioral analysis
     """
 
-    def __init__(self, postgres_repo: PostgresRepository, vector_manager: VectorCacheManager = None, **kwargs):
+    def __init__(
+        self,
+        postgres_repo: PostgresRepository,
+        vector_manager: VectorCacheManager = None,
+        anthropic_client: Optional[anthropic.Anthropic] = None,
+        github_client: Optional[Github] = None,
+        **kwargs
+    ):
         """
         Initialize skill group
 
         Args:
             postgres_repo: PostgresRepository instance for knowledge base operations
             vector_manager: VectorCacheManager instance
+            anthropic_client: Anthropic API client for pattern extraction
+            github_client: GitHub API client for repository access
         """
         super().__init__(**kwargs)
 
         self.postgres_repo = postgres_repo
+        self.anthropic_client = anthropic_client
+        self.github_client = github_client
 
         # Initialize vector cache manager if not provided
         if vector_manager is None:
@@ -862,6 +984,11 @@ class ComponentSensibilitySkills(SkillGroup):
         detect_skill = DetectMisplacedComponentsSkill(self.vector_manager, self.postgres_repo)
         analyze_skill = AnalyzeComponentCentralitySkill(self.postgres_repo)
         recommend_skill = RecommendConsolidationPlanSkill(self.postgres_repo, self.integration_service)
-        scan_skill = ScanRepositoryComponentsSkill(self.postgres_repo, self.vector_manager)
+        scan_skill = ScanRepositoryComponentsSkill(
+            self.postgres_repo,
+            self.vector_manager,
+            self.anthropic_client,
+            self.github_client
+        )
 
         return [detect_skill, analyze_skill, recommend_skill, scan_skill]
