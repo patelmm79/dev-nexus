@@ -681,7 +681,6 @@ class ScanRepositoryComponentsSkill(BaseSkill):
         """Initialize skill with dependencies"""
         self.postgres_repo = postgres_repo
         self.vector_manager = vector_manager
-        self.scanner = ComponentScanner()
 
     @property
     def skill_id(self) -> str:
@@ -755,10 +754,11 @@ class ScanRepositoryComponentsSkill(BaseSkill):
                 }
 
             repo_data = kb.repositories[repository]
-            logger.info(f"Scanning components in {repository}")
+            logger.info(f"Processing components in {repository}")
 
-            # Scan components using ComponentScanner
-            components = self.scanner.extract_components(repository, repo_data)
+            # Get components from repo_data (pre-scanned by pattern analyzer)
+            # In A2A server context, we work with already-detected components
+            components = repo_data.components if hasattr(repo_data, 'components') and repo_data.components else []
 
             logger.info(f"Found {len(components)} components in {repository}")
 
