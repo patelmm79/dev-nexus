@@ -229,6 +229,14 @@ class DetectMisplacedComponentsSkill(BaseSkill):
                 "analysis_timestamp": datetime.now().isoformat()
             }
 
+            # Save analysis results to KB
+            try:
+                logger.info(f"Saving detection results to KB")
+                await self.postgres_repo.save_knowledge_base(kb)
+                logger.info(f"Detection results saved successfully")
+            except Exception as save_error:
+                logger.warning(f"Could not save detection results: {save_error}")
+
             logger.info(f"Detection complete: Found {len(misplaced_components)} misplaced components")
             return result
 
@@ -396,6 +404,14 @@ class AnalyzeComponentCentralitySkill(BaseSkill):
                 },
                 "analysis_timestamp": datetime.now().isoformat()
             }
+
+            # Save analysis results to KB
+            try:
+                logger.info(f"Saving centrality analysis results to KB")
+                await self.postgres_repo.save_knowledge_base(kb)
+                logger.info(f"Centrality analysis results saved successfully")
+            except Exception as save_error:
+                logger.warning(f"Could not save centrality analysis: {save_error}")
 
             logger.info(f"Centrality analysis complete for {component_name}")
             return result
@@ -591,6 +607,15 @@ class RecommendConsolidationPlanSkill(BaseSkill):
                 "recommendation": recommendation.model_dump(mode='json'),
                 "recommendation_timestamp": datetime.now().isoformat()
             }
+
+            # Save recommendation to KB consolidation history
+            try:
+                logger.info(f"Saving consolidation recommendation to KB")
+                kb.consolidation_history.append(recommendation)
+                await self.postgres_repo.save_knowledge_base(kb)
+                logger.info(f"Consolidation recommendation saved successfully")
+            except Exception as save_error:
+                logger.warning(f"Could not save consolidation recommendation: {save_error}")
 
             logger.info(f"Consolidation plan generated: {rec_id}")
             return result
