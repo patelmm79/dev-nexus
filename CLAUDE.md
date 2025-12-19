@@ -125,7 +125,24 @@ The system now operates in two modes:
      - CI/CD: Cloud Build multi-stage configuration
      - Containerization: Docker multi-stage build exposing port 8080
    - **Scoring**: Weighted by violation severity (critical -10, high -5, medium -2, low -1)
-   - **Integration**: All 3 skills callable via A2A protocol, can be coordinated with other agents
+   - **A2A Protocol Integration**: Bidirectional coordination with external agents:
+     * **dependency-orchestrator**: Notified of critical violations; queries dependencies
+     * **pattern-miner**: Triggered for deep code analysis on violations
+     * **monitoring-system**: Records compliance metrics and trends
+     * Graceful fallback if agents not configured
+     * Comprehensive error handling and logging
+   - **Integration Workflow**:
+     1. ValidateRepositoryArchitectureSkill validates repository
+     2. If critical violations → records compliance snapshot
+     3. Notifies dependency-orchestrator of violations
+     4. Triggers pattern-miner for deep analysis
+     5. Queries dependency context for impact assessment
+     6. Returns integration results in skill output
+   - **Integration Service** (`core/compliance_integration.py`):
+     * ComplianceIntegrationService manages external agent coordination
+     * Methods: notify_compliance_violation(), trigger_deep_analysis(), record_compliance_snapshot(), process_compliance_report(), get_integration_status()
+     * Uses ExternalAgentRegistry for agent discovery
+     * Enables multi-agent collaboration for architectural improvement
 
 5. **Core Modules** (`core/`)
    - `pattern_extractor.py` - Pattern extraction with Claude
@@ -134,9 +151,10 @@ The system now operates in two modes:
    - `integration_service.py` - Bidirectional A2A coordination with external agents
    - `core/documentation_standards_checker.py` - Documentation standards compliance checker
    - `core/database.py` - PostgreSQL connection with exponential backoff retry logic
-   - `core/standards_loader.py` - **NEW** Load and parse 10 architectural standards documents
-   - `core/architectural_validator.py` - **NEW** GitHub API-based repository validation engine
-   - `core/category_validators.py` - **NEW** 10 category-specific validators for standards compliance
+   - `core/standards_loader.py` - Load and parse 10 architectural standards documents
+   - `core/architectural_validator.py` - GitHub API-based repository validation engine
+   - `core/category_validators.py` - 10 category-specific validators for standards compliance
+   - `core/compliance_integration.py` - **NEW** A2A protocol coordination for compliance violations
    - Shared by both GitHub Actions CLI and A2A server
 
 6. **Enhanced Knowledge Base v2** (`schemas/`) **NEW**
