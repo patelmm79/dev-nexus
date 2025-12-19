@@ -13,6 +13,7 @@ from github import Github
 from a2a.skills.base import BaseSkill, SkillGroup
 from core.standards_loader import StandardsLoader
 from core.architectural_validator import ArchitecturalValidator
+from core.compliance_integration import ComplianceIntegrationService
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,7 @@ class ValidateRepositoryArchitectureSkill(BaseSkill):
             # Extract optional parameters
             scope = input_data.get("validation_scope")
             include_recommendations = input_data.get("include_recommendations", True)
+            notify_agents = input_data.get("notify_agents", True)
 
             logger.info(f"Validating repository: {repo_name}")
 
@@ -157,6 +159,14 @@ class ValidateRepositoryArchitectureSkill(BaseSkill):
 
             if include_recommendations:
                 result["recommendations"] = report.recommendations
+
+            # Coordinate with external agents via A2A protocol
+            if notify_agents and hasattr(self, 'integration_service'):
+                integration_results = self.integration_service.process_compliance_report(
+                    repo_name, report, auto_notify=True
+                )
+                result["a2a_integration"] = integration_results.get("integrations", {})
+                logger.info(f"Coordinated with external agents: {result['a2a_integration']}")
 
             logger.info(f"Validation complete: {report.repository} - Score: {report.overall_compliance_score}")
             return result
@@ -439,6 +449,11 @@ class ArchitecturalComplianceSkills(SkillGroup):
     1. validate_repository_architecture - Full validation with all standards
     2. check_specific_standard - Focused validation on single standard
     3. suggest_improvements - Prioritized improvement recommendations
+
+    Integrates with external A2A agents:
+    - dependency-orchestrator: Notifies of compliance violations affecting dependencies
+    - pattern-miner: Triggers deep analysis on violations
+    - monitoring-system: Records compliance metrics and trends
     """
 
     def __init__(self, github_client: Github = None, standards_loader: StandardsLoader = None, **kwargs):
@@ -467,12 +482,22 @@ class ArchitecturalComplianceSkills(SkillGroup):
         # Create validator
         self.validator = ArchitecturalValidator(github_client, standards_loader)
 
-        logger.info("Initialized ArchitecturalComplianceSkills")
+        # Initialize integration service for A2A coordination
+        self.integration_service = ComplianceIntegrationService()
+
+        logger.info("Initialized ArchitecturalComplianceSkills with A2A integration")
 
     def get_skills(self) -> List[BaseSkill]:
         """Return all skills in this group"""
+        # Create skill instances
+        validate_skill = ValidateRepositoryArchitectureSkill(self.validator)
+        validate_skill.integration_service = self.integration_service
+
+        check_skill = CheckSpecificStandardSkill(self.validator)
+        suggest_skill = SuggestImprovementsSkill(self.validator)
+
         return [
-            ValidateRepositoryArchitectureSkill(self.validator),
-            CheckSpecificStandardSkill(self.validator),
-            SuggestImprovementsSkill(self.validator),
+            validate_skill,
+            check_skill,
+            suggest_skill,
         ]
