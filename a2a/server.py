@@ -28,6 +28,13 @@ from core.similarity_finder import SimilarityFinder
 from core.integration_service import IntegrationService
 from core.database import init_db, close_db, get_db, DatabaseManager
 
+# Configure root logger to capture all loggers (including skills)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+
 # Initialize logger for this module
 logger = logging.getLogger(__name__)
 
