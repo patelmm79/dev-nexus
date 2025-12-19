@@ -28,6 +28,9 @@ from core.similarity_finder import SimilarityFinder
 from core.integration_service import IntegrationService
 from core.database import init_db, close_db, get_db, DatabaseManager
 
+# Initialize logger for this module
+logger = logging.getLogger(__name__)
+
 # Import skill modules (they self-register)
 from a2a.skills.pattern_query import PatternQuerySkills
 from a2a.skills.repository_info import RepositoryInfoSkills
@@ -36,6 +39,7 @@ from a2a.skills.integration import IntegrationSkills
 from a2a.skills.documentation_standards import DocumentationStandardsSkills
 from a2a.skills.runtime_monitoring import RuntimeMonitoringSkills
 from a2a.skills.activity import ActivitySkills
+from a2a.skills.architectural_compliance import ArchitecturalComplianceSkills
 
 # Load configuration
 config = load_config()
@@ -95,6 +99,15 @@ for skill in runtime_monitoring_skills.get_skills():
 activity_skills = ActivitySkills(postgres_repo)
 for skill in activity_skills.get_skills():
     registry.register(skill)
+
+# Register architectural compliance skills
+try:
+    arch_compliance_skills = ArchitecturalComplianceSkills()
+    for skill in arch_compliance_skills.get_skills():
+        registry.register(skill)
+    logger.info("Registered architectural compliance skills")
+except Exception as e:
+    logger.warning(f"Failed to register architectural compliance skills: {e}")
 
 # Initialize executor with registry
 executor = PatternDiscoveryExecutor(registry)
