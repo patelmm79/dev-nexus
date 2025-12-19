@@ -14,7 +14,6 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 import logging
 import anthropic
-from github import Github
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -112,12 +111,7 @@ except Exception as e:
 # Register component sensibility skills
 try:
     from a2a.skills.component_sensibility import ComponentSensibilitySkills
-    from core.knowledge_base import KnowledgeBaseManager
     from core.component_analyzer import VectorCacheManager
-
-    # Initialize KnowledgeBaseManager with GitHub client and KB repo
-    github_client = Github(config.github_token)
-    kb_manager = KnowledgeBaseManager(github_client, config.knowledge_base_repo)
 
     # Try to initialize VectorCacheManager with PostgreSQL
     # If PostgreSQL is not available, log warning but continue with graceful degradation
@@ -138,7 +132,7 @@ try:
                 return []
         vector_manager = MockVectorCacheManager(postgres_url)
 
-    component_sensibility_skills = ComponentSensibilitySkills(kb_manager, vector_manager)
+    component_sensibility_skills = ComponentSensibilitySkills(postgres_repo, vector_manager)
     for skill in component_sensibility_skills.get_skills():
         registry.register(skill)
     logger.info("Registered component sensibility skills")

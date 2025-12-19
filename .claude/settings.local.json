@@ -74,7 +74,8 @@
       "Bash(__NEW_LINE__ echo \"Testing detect_misplaced_components skill...\")",
       "Bash(__NEW_LINE__ git add a2a/skills/component_sensibility.py)",
       "Bash(__NEW_LINE__ sleep 10)",
-      "Bash(__NEW_LINE__ git add .claude/settings.local.json)"
+      "Bash(__NEW_LINE__ git add .claude/settings.local.json)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

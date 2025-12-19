@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from a2a.skills.base import BaseSkill, SkillGroup
 from core.component_analyzer import ComponentScanner, VectorCacheManager, CentralityCalculator
-from core.knowledge_base import KnowledgeBaseManager
+from core.postgres_repository import PostgresRepository
 from schemas.knowledge_base_v2 import ConsolidationRecommendation
 
 logger = logging.getLogger(__name__)
@@ -28,10 +28,10 @@ class DetectMisplacedComponentsSkill(BaseSkill):
     in other repositories, suggesting they might be better centralized.
     """
 
-    def __init__(self, vector_manager: VectorCacheManager, kb_manager: KnowledgeBaseManager):
+    def __init__(self, vector_manager: VectorCacheManager, postgres_repo: PostgresRepository):
         """Initialize skill with dependencies"""
         self.vector_manager = vector_manager
-        self.kb_manager = kb_manager
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -117,7 +117,7 @@ class DetectMisplacedComponentsSkill(BaseSkill):
             logger.info(f"Detecting misplaced components. Repository: {repo_name or 'all'}")
 
             # Load knowledge base
-            kb = self.kb_manager.load_knowledge_base()
+            kb = await self.postgres_repo.load_knowledge_base()
             if not kb:
                 return {
                     "success": False,
@@ -244,9 +244,9 @@ class AnalyzeComponentCentralitySkill(BaseSkill):
     is the best location for a component.
     """
 
-    def __init__(self, kb_manager: KnowledgeBaseManager):
+    def __init__(self, postgres_repo: PostgresRepository):
         """Initialize skill"""
-        self.kb_manager = kb_manager
+        self.postgres_repo = postgres_repo
 
     @property
     def skill_id(self) -> str:
@@ -326,7 +326,7 @@ class AnalyzeComponentCentralitySkill(BaseSkill):
             logger.info(f"Analyzing centrality for {component_name} in {current_location}")
 
             # Load KB
-            kb = self.kb_manager.load_knowledge_base()
+            kb = await self.postgres_repo.load_knowledge_base()
             if not kb:
                 return {
                     "success": False,
@@ -412,9 +412,9 @@ class RecommendConsolidationPlanSkill(BaseSkill):
     and impact analysis from dependency-orchestrator and pattern-miner.
     """
 
-    def __init__(self, kb_manager: KnowledgeBaseManager, integration_service: Optional[Any] = None):
+    def __init__(self, postgres_repo: PostgresRepository, integration_service: Optional[Any] = None):
         """Initialize skill"""
-        self.kb_manager = kb_manager
+        self.postgres_repo = postgres_repo
         self.integration_service = integration_service
 
     @property
@@ -507,7 +507,7 @@ class RecommendConsolidationPlanSkill(BaseSkill):
             logger.info(f"Generating consolidation plan for {component_name} from {from_repo} to {to_repo or 'TBD'}")
 
             # Load KB
-            kb = self.kb_manager.load_knowledge_base()
+            kb = await self.postgres_repo.load_knowledge_base()
             if not kb:
                 return {
                     "success": False,
@@ -677,9 +677,9 @@ class ScanRepositoryComponentsSkill(BaseSkill):
     from the frontend Repositories tab.
     """
 
-    def __init__(self, kb_manager: KnowledgeBaseManager, vector_manager: VectorCacheManager):
+    def __init__(self, postgres_repo: PostgresRepository, vector_manager: VectorCacheManager):
         """Initialize skill with dependencies"""
-        self.kb_manager = kb_manager
+        self.postgres_repo = postgres_repo
         self.vector_manager = vector_manager
         self.scanner = ComponentScanner()
 
@@ -741,7 +741,7 @@ class ScanRepositoryComponentsSkill(BaseSkill):
                 }
 
             # Load KB
-            kb = self.kb_manager.load_knowledge_base()
+            kb = await self.postgres_repo.load_knowledge_base()
             if not kb:
                 return {
                     "success": False,
@@ -816,26 +816,35 @@ class ComponentSensibilitySkills(SkillGroup):
     - pattern-miner: Deep code comparison and behavioral analysis
     """
 
-    def __init__(self, kb_manager: KnowledgeBaseManager = None, vector_manager: VectorCacheManager = None, **kwargs):
+    def __init__(self, postgres_repo: PostgresRepository, vector_manager: VectorCacheManager = None, **kwargs):
         """
         Initialize skill group
 
         Args:
-            kb_manager: KnowledgeBaseManager instance
+            postgres_repo: PostgresRepository instance for knowledge base operations
             vector_manager: VectorCacheManager instance
         """
         super().__init__(**kwargs)
 
-        # Initialize knowledge base manager if not provided
-        if kb_manager is None:
-            kb_manager = KnowledgeBaseManager()
+        self.postgres_repo = postgres_repo
 
         # Initialize vector cache manager if not provided
         if vector_manager is None:
             postgres_url = os.environ.get("DATABASE_URL", "postgresql://localhost/devnexus")
-            vector_manager = VectorCacheManager(postgres_url)
+            try:
+                vector_manager = VectorCacheManager(postgres_url)
+            except Exception as e:
+                logger.warning(f"Vector manager not available: {e}")
+                # Create mock vector manager for graceful degradation
+                class MockVectorCacheManager:
+                    def __init__(self, url):
+                        self.postgres_url = url
+                    def get_or_create_vector(self, component):
+                        return None
+                    def find_similar(self, component, top_k=5, min_similarity=0.5):
+                        return []
+                vector_manager = MockVectorCacheManager(postgres_url)
 
-        self.kb_manager = kb_manager
         self.vector_manager = vector_manager
 
         # Get integration service if available
@@ -850,9 +859,9 @@ class ComponentSensibilitySkills(SkillGroup):
 
     def get_skills(self) -> List[BaseSkill]:
         """Return all skills in this group"""
-        detect_skill = DetectMisplacedComponentsSkill(self.vector_manager, self.kb_manager)
-        analyze_skill = AnalyzeComponentCentralitySkill(self.kb_manager)
-        recommend_skill = RecommendConsolidationPlanSkill(self.kb_manager, self.integration_service)
-        scan_skill = ScanRepositoryComponentsSkill(self.kb_manager, self.vector_manager)
+        detect_skill = DetectMisplacedComponentsSkill(self.vector_manager, self.postgres_repo)
+        analyze_skill = AnalyzeComponentCentralitySkill(self.postgres_repo)
+        recommend_skill = RecommendConsolidationPlanSkill(self.postgres_repo, self.integration_service)
+        scan_skill = ScanRepositoryComponentsSkill(self.postgres_repo, self.vector_manager)
 
         return [detect_skill, analyze_skill, recommend_skill, scan_skill]
