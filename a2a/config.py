@@ -81,7 +81,7 @@ def load_config() -> Config:
         agent_url = os.environ.get("HOST_OVERRIDE", f"http://localhost:{os.environ.get('PORT', 8080)}")
 
     # Load CORS origins (comma-separated list)
-    cors_origins_str = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,https://*.vercel.app,https://dev-nexus-frontend-noig7bsv5-milan-patels-projects-187b35de.vercel.app")
+    cors_origins_str = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,https://dev-nexus-frontend.vercel.app,https://dev-nexus-frontend-noig7bsv5-milan-patels-projects-187b35de.vercel.app")
     cors_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
     return Config(
