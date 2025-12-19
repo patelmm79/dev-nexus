@@ -117,7 +117,7 @@ class DetectMisplacedComponentsSkill(BaseSkill):
             logger.info(f"Detecting misplaced components. Repository: {repo_name or 'all'}")
 
             # Load knowledge base
-            kb = self.kb_manager.load_current()
+            kb = self.kb_manager.load_knowledge_base()
             if not kb:
                 return {
                     "success": False,
@@ -326,7 +326,7 @@ class AnalyzeComponentCentralitySkill(BaseSkill):
             logger.info(f"Analyzing centrality for {component_name} in {current_location}")
 
             # Load KB
-            kb = self.kb_manager.load_current()
+            kb = self.kb_manager.load_knowledge_base()
             if not kb:
                 return {
                     "success": False,
@@ -507,7 +507,7 @@ class RecommendConsolidationPlanSkill(BaseSkill):
             logger.info(f"Generating consolidation plan for {component_name} from {from_repo} to {to_repo or 'TBD'}")
 
             # Load KB
-            kb = self.kb_manager.load_current()
+            kb = self.kb_manager.load_knowledge_base()
             if not kb:
                 return {
                     "success": False,
