@@ -776,18 +776,26 @@ class ScanRepositoryComponentsSkill(BaseSkill):
             if self.pattern_extractor and self.github_client:
                 try:
                     owner, repo = repository.split("/")
+                    logger.info(f"[SCAN] Starting pattern extraction for {repository}")
+
+                    logger.info(f"[SCAN] Fetching GitHub repository object for {owner}/{repo}")
                     gh_repo = self.github_client.get_user(owner).get_repo(repo)
+                    logger.info(f"[SCAN] Successfully retrieved GitHub repository object")
 
                     # Fetch main branch content
-                    logger.info(f"Fetching repository content from GitHub for {repository}")
-                    contents = gh_repo.get_contents("")
+                    logger.info(f"[SCAN] Starting file collection from repository root")
+                    start_collect = datetime.now()
 
                     # Collect code files
                     code_files = {}
                     self._collect_code_files(gh_repo, "", code_files)
 
+                    collect_duration = (datetime.now() - start_collect).total_seconds()
+                    logger.info(f"[SCAN] File collection completed in {collect_duration:.2f}s. Found {len(code_files)} code files")
+
                     if code_files:
                         # Prepare changes dict for pattern extractor
+                        logger.info(f"[SCAN] Preparing file list for Claude analysis (limiting to 20 files)")
                         files_changed = []
                         for filepath, content in list(code_files.items())[:20]:  # Limit to first 20 files
                             files_changed.append({
@@ -796,9 +804,19 @@ class ScanRepositoryComponentsSkill(BaseSkill):
                                 "diff": content[:2000]  # Limit content size
                             })
 
+                        logger.info(f"[SCAN] Prepared {len(files_changed)} files for analysis")
+
                         if files_changed:
+                            logger.info(f"[SCAN] Fetching repository commits for commit SHA")
+                            try:
+                                commit_sha = gh_repo.get_commits()[0].sha if gh_repo.get_commits() else "unknown"
+                                logger.info(f"[SCAN] Got commit SHA: {commit_sha}")
+                            except Exception as e:
+                                logger.warning(f"[SCAN] Could not fetch commits: {e}, using 'unknown'")
+                                commit_sha = "unknown"
+
                             changes = {
-                                "commit_sha": gh_repo.get_commits()[0].sha if gh_repo.get_commits() else "unknown",
+                                "commit_sha": commit_sha,
                                 "commit_message": f"Repository analysis for {repository}",
                                 "author": "system",
                                 "timestamp": datetime.now().isoformat(),
@@ -806,15 +824,19 @@ class ScanRepositoryComponentsSkill(BaseSkill):
                             }
 
                             # Extract patterns using Claude
-                            logger.info(f"Extracting patterns from {repository}")
+                            logger.info(f"[SCAN] Starting Claude pattern extraction for {len(files_changed)} files")
+                            start_claude = datetime.now()
                             pattern_entry = self.pattern_extractor.extract_patterns_with_llm(
                                 changes,
                                 repository
                             )
+                            claude_duration = (datetime.now() - start_claude).total_seconds()
+                            logger.info(f"[SCAN] Claude analysis completed in {claude_duration:.2f}s")
 
                             # Convert reusable_components to Component objects
-                            logger.info(f"Converting {len(pattern_entry.reusable_components)} detected components")
+                            logger.info(f"[SCAN] Converting {len(pattern_entry.reusable_components)} detected components to Component objects")
                             for i, reusable_comp in enumerate(pattern_entry.reusable_components):
+                                logger.debug(f"[SCAN] Processing component {i+1}: {reusable_comp.name}")
                                 component = Component(
                                     component_id=f"{repository}-{reusable_comp.name}-{i}",
                                     name=reusable_comp.name,
@@ -833,29 +855,38 @@ class ScanRepositoryComponentsSkill(BaseSkill):
                                     sync_status="original"
                                 )
                                 components.append(component)
+                            logger.info(f"[SCAN] Component conversion completed: {len(components)} components ready for vectorization")
                     else:
-                        logger.warning(f"No code files found in {repository}")
+                        logger.warning(f"[SCAN] No code files found in {repository}")
 
                 except Exception as e:
-                    logger.warning(f"Could not extract patterns from GitHub: {e}. Using existing components.")
+                    logger.warning(f"[SCAN] Pattern extraction failed: {type(e).__name__}: {e}. Using existing components from KB.", exc_info=True)
                     components = repo_data.components if hasattr(repo_data, 'components') and repo_data.components else []
             else:
                 # Fallback: use pre-scanned components from KB
                 logger.info("Pattern extractor not available, using pre-scanned components from KB")
                 components = repo_data.components if hasattr(repo_data, 'components') and repo_data.components else []
 
-            logger.info(f"Found {len(components)} components in {repository}")
+            logger.info(f"[SCAN] Found {len(components)} components in {repository}")
 
             # Generate vectors for each component if vector manager available
+            logger.info(f"[SCAN] Starting vectorization of {len(components)} components")
+            start_vectorize = datetime.now()
             vectors_generated = 0
-            for component in components:
+            for i, component in enumerate(components):
                 try:
+                    logger.debug(f"[SCAN] Vectorizing component {i+1}/{len(components)}: {component.name}")
                     vector = self.vector_manager.get_or_create_vector(component)
                     if vector:
                         vectors_generated += 1
-                    logger.debug(f"Processed vector for {component.name}")
+                        logger.debug(f"[SCAN] Successfully vectorized {component.name}")
+                    else:
+                        logger.debug(f"[SCAN] No vector returned for {component.name}")
                 except Exception as e:
-                    logger.warning(f"Could not vectorize {component.name}: {e}")
+                    logger.warning(f"[SCAN] Could not vectorize {component.name}: {type(e).__name__}: {e}")
+
+            vectorize_duration = (datetime.now() - start_vectorize).total_seconds()
+            logger.info(f"[SCAN] Vectorization completed in {vectorize_duration:.2f}s. Generated {vectors_generated} vectors")
 
             # Update KB with components
             repo_data.components = components
@@ -889,28 +920,41 @@ class ScanRepositoryComponentsSkill(BaseSkill):
     def _collect_code_files(self, gh_repo, path: str, code_files: Dict[str, str], max_depth: int = 3, depth: int = 0):
         """Recursively collect code files from GitHub repository"""
         if depth > max_depth:
+            logger.debug(f"[SCAN] Reached max depth ({max_depth}) at path: {path}")
             return
 
         try:
+            logger.debug(f"[SCAN] Reading directory at depth {depth}: {path or '(root)'}")
             contents = gh_repo.get_contents(path) if path else gh_repo.get_contents("")
 
             if isinstance(contents, list):
+                logger.debug(f"[SCAN] Found {len(contents)} items in {path or '(root)'}")
+                files_in_dir = 0
+                dirs_in_dir = 0
+
                 for content in contents:
                     # Skip common non-code directories
                     if any(skip in content.path for skip in [".git", "node_modules", ".pytest", "__pycache__", "venv", ".github"]):
+                        logger.debug(f"[SCAN] Skipping directory: {content.path}")
                         continue
 
                     if content.type == "file":
                         # Collect Python, JS, TS files
                         if any(content.path.endswith(ext) for ext in [".py", ".js", ".ts", ".go", ".java"]):
                             try:
+                                logger.debug(f"[SCAN] Downloading file: {content.path}")
                                 code_files[content.path] = content.decoded_content.decode("utf-8", errors="ignore")
+                                files_in_dir += 1
                             except Exception as e:
-                                logger.debug(f"Could not decode {content.path}: {e}")
+                                logger.warning(f"[SCAN] Could not decode {content.path}: {type(e).__name__}: {e}")
                     elif content.type == "dir":
+                        logger.debug(f"[SCAN] Recursing into directory: {content.path}")
+                        dirs_in_dir += 1
                         self._collect_code_files(gh_repo, content.path, code_files, max_depth, depth + 1)
+
+                logger.debug(f"[SCAN] Completed reading {path or '(root)'}: {files_in_dir} files, {dirs_in_dir} subdirs. Total collected so far: {len(code_files)}")
         except Exception as e:
-            logger.debug(f"Could not read directory {path}: {e}")
+            logger.warning(f"[SCAN] Could not read directory {path or '(root)'}: {type(e).__name__}: {e}")
 
 
 class ComponentSensibilitySkills(SkillGroup):

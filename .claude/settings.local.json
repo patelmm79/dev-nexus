@@ -75,7 +75,10 @@
       "Bash(__NEW_LINE__ git add a2a/skills/component_sensibility.py)",
       "Bash(__NEW_LINE__ sleep 10)",
       "Bash(__NEW_LINE__ git add .claude/settings.local.json)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(I expect the pattern analyzer to be triggered.\"\n\n🤖 Generated with Claude Code\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(timeout 180 bash -c 'while true; do status=$(gcloud builds describe 6c9102dd-3ee9-4e60-99a5-67ff460819b3 --project=globalbiting-dev --format=\"\"value(STATUS)\"\"); echo \"\"Build status: $status\"\"; if [ \"\"$status\"\" = \"\"SUCCESS\"\" ] || [ \"\"$status\"\" = \"\"FAILURE\"\" ]; then break; fi; sleep 5; done')",
+      "Bash(SERVICE_URL=\"https://pattern-discovery-agent-75l7mntama-uc.a.run.app\")"
     ],
     "deny": [],
     "ask": []
