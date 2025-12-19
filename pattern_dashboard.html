@@ -3,477 +3,273 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Architecture Pattern Dashboard</title>
+    <title>DEPRECATED: Pattern Dashboard</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
-            color: #333;
         }
-        
+
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        h1 {
-            color: white;
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .upload-section {
             background: white;
             border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        }
-        
-        .upload-area {
-            border: 3px dashed #667eea;
-            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
             padding: 40px;
             text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
         }
-        
-        .upload-area:hover {
-            background: #f8f9ff;
-            border-color: #764ba2;
+
+        .icon {
+            font-size: 4em;
+            margin-bottom: 20px;
         }
-        
-        .upload-area.dragover {
-            background: #f0f4ff;
-            border-color: #667eea;
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2em;
         }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            text-align: center;
-            transition: transform 0.3s;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .stat-number {
-            font-size: 3em;
-            font-weight: bold;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        }
-        
-        .stat-label {
-            color: #666;
-            font-size: 0.9em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .repos-section {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }
-        
-        .repo-card {
-            border: 1px solid #e0e0e0;
+
+        .deprecation-notice {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
             border-radius: 8px;
             padding: 20px;
-            margin-bottom: 20px;
-            transition: all 0.3s;
+            margin-bottom: 30px;
+            text-align: left;
         }
-        
-        .repo-card:hover {
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
-            border-color: #667eea;
+
+        .deprecation-notice h2 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 1.1em;
         }
-        
-        .repo-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+
+        .deprecation-notice p {
+            color: #856404;
+            line-height: 1.6;
+            margin-bottom: 10px;
         }
-        
-        .repo-name {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #667eea;
+
+        .deprecation-notice ul {
+            margin-left: 20px;
+            color: #856404;
         }
-        
-        .pattern-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
+
+        .deprecation-notice li {
+            margin-bottom: 8px;
         }
-        
-        .tag {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            display: inline-block;
-        }
-        
-        .similarity-section {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #e0e0e0;
-        }
-        
-        .similarity-item {
-            background: #f8f9ff;
-            padding: 10px 15px;
-            border-radius: 6px;
-            margin-top: 8px;
-            font-size: 0.9em;
-        }
-        
-        .network-section {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+
+        .migration-guide {
+            background: #e7f3ff;
+            border: 2px solid #2196F3;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: left;
             margin-bottom: 30px;
         }
-        
-        #network-canvas {
-            width: 100%;
-            height: 500px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
+
+        .migration-guide h2 {
+            color: #1565c0;
+            margin-bottom: 15px;
+            font-size: 1.1em;
         }
-        
-        .hidden {
-            display: none;
+
+        .migration-guide ol {
+            margin-left: 20px;
+            color: #1565c0;
         }
-        
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
+
+        .migration-guide li {
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        .migration-guide code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        a.button {
+            display: inline-block;
             padding: 12px 24px;
             border-radius: 6px;
-            font-size: 1em;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
             cursor: pointer;
-            transition: transform 0.2s;
         }
-        
-        button:hover {
-            transform: scale(1.05);
+
+        .button-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
         }
-        
-        .problem-domain {
+
+        .button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .button-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .button-secondary:hover {
+            background: #f8f9ff;
+        }
+
+        .timeline {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .timeline h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .timeline-item {
+            margin-bottom: 15px;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .timeline-item:before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            background: #667eea;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #667eea;
+        }
+
+        .timeline-date {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .timeline-text {
             color: #666;
-            font-style: italic;
-            margin-top: 10px;
+        }
+
+        .archived-file {
+            background: #f0f0f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .archived-file code {
+            background: white;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🏗️ Architecture Pattern Dashboard</h1>
-        
-        <div class="upload-section">
-            <div class="upload-area" id="uploadArea">
-                <h2>📁 Load Knowledge Base</h2>
-                <p style="margin: 15px 0; color: #666;">
-                    Drop your knowledge_base.json file here or click to browse
-                </p>
-                <input type="file" id="fileInput" accept=".json" style="display: none;">
-                <button onclick="document.getElementById('fileInput').click()">
-                    Choose File
-                </button>
+        <div class="icon">📦</div>
+
+        <h1>This Dashboard Has Been Deprecated</h1>
+
+        <div class="deprecation-notice">
+            <h2>⚠️ Important Notice</h2>
+            <p><strong>pattern_dashboard.html</strong> is no longer maintained and has been replaced by the integrated React frontend in <strong>dev-nexus-frontend</strong>.</p>
+            <p>All functionality has been migrated to a modern, full-featured web application with improved performance and user experience.</p>
+        </div>
+
+        <div class="migration-guide">
+            <h2>✅ What's Changed</h2>
+            <ul style="margin-left: 20px;">
+                <li><strong>Patterns Dashboard</strong>: Navigate to <code>/patterns</code> in the new frontend</li>
+                <li><strong>Components Analysis</strong>: Navigate to <code>/components</code> for component consolidation features (NEW)</li>
+                <li><strong>Network Visualization</strong>: Enhanced D3.js graph with interactive features</li>
+                <li><strong>Real-time Updates</strong>: Live data from A2A API instead of static JSON uploads</li>
+                <li><strong>Mobile Responsive</strong>: Works seamlessly on desktop, tablet, and mobile</li>
+            </ul>
+        </div>
+
+        <div class="migration-guide">
+            <h2>🚀 How to Access the New Frontend</h2>
+            <ol>
+                <li>Clone the React frontend repository:
+                    <div style="background: white; padding: 10px; border-radius: 4px; margin-top: 8px;">
+                        <code>git clone https://github.com/patelmm79/dev-nexus-frontend.git</code>
+                    </div>
+                </li>
+                <li>Install dependencies: <code>npm install</code></li>
+                <li>Start the dev server: <code>npm start</code></li>
+                <li>Open browser to <code>http://localhost:3000</code></li>
+                <li>Navigate to:
+                    <ul style="margin-left: 20px; margin-top: 8px;">
+                        <li><code>/patterns</code> - View patterns dashboard</li>
+                        <li><code>/components</code> - Analyze component consolidation</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="timeline">
+            <h2>📅 Deprecation Timeline</h2>
+            <div class="timeline-item">
+                <div class="timeline-date">December 18, 2025 (Today)</div>
+                <div class="timeline-text">pattern_dashboard.html deprecated - this notice displayed</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-date">December 25, 2025</div>
+                <div class="timeline-text">Users urged to migrate to dev-nexus-frontend</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-date">January 31, 2026</div>
+                <div class="timeline-text">File may be removed from repository</div>
             </div>
         </div>
-        
-        <div id="dashboard" class="hidden">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-number" id="repoCount">0</div>
-                    <div class="stat-label">Repositories</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="patternCount">0</div>
-                    <div class="stat-label">Unique Patterns</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="dependencyCount">0</div>
-                    <div class="stat-label">Dependencies</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="redundancyScore">0%</div>
-                    <div class="stat-label">Redundancy</div>
-                </div>
-            </div>
-            
-            <div class="network-section">
-                <h2>Pattern Similarity Network</h2>
-                <canvas id="network-canvas"></canvas>
-            </div>
-            
-            <div class="repos-section">
-                <h2>Repository Details</h2>
-                <div id="repoList"></div>
-            </div>
+
+        <div class="archived-file">
+            ℹ️ The original <code>pattern_dashboard.html</code> has been backed up as <code>pattern_dashboard.html.deprecated</code>
+        </div>
+
+        <div class="action-buttons">
+            <a href="https://github.com/patelmm79/dev-nexus-frontend" class="button button-primary">
+                → Go to Frontend Repo
+            </a>
+            <a href="../docs/FRONTEND_INTEGRATION.md" class="button button-secondary">
+                ℹ️ Integration Guide
+            </a>
         </div>
     </div>
-
-    <script>
-        let knowledgeBase = null;
-
-        // File upload handlers
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-
-        uploadArea.addEventListener('click', () => fileInput.click());
-        
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file) loadFile(file);
-        });
-        
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) loadFile(file);
-        });
-
-        function loadFile(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    knowledgeBase = JSON.parse(e.target.result);
-                    renderDashboard();
-                } catch (error) {
-                    alert('Error parsing JSON file: ' + error.message);
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function renderDashboard() {
-            document.getElementById('dashboard').classList.remove('hidden');
-            
-            const repos = knowledgeBase.repositories || {};
-            const repoList = Object.entries(repos);
-            
-            // Calculate stats
-            const allPatterns = new Set();
-            const allDependencies = new Set();
-            const patternCounts = {};
-            
-            repoList.forEach(([name, data]) => {
-                const patterns = data.patterns?.patterns || [];
-                const deps = data.patterns?.dependencies || [];
-                
-                patterns.forEach(p => {
-                    allPatterns.add(p);
-                    patternCounts[p] = (patternCounts[p] || 0) + 1;
-                });
-                
-                deps.forEach(d => allDependencies.add(d));
-            });
-            
-            // Calculate redundancy (patterns used in multiple repos)
-            const redundantPatterns = Object.values(patternCounts).filter(count => count > 1).length;
-            const redundancyScore = allPatterns.size > 0 
-                ? Math.round((redundantPatterns / allPatterns.size) * 100) 
-                : 0;
-            
-            // Update stats
-            document.getElementById('repoCount').textContent = repoList.length;
-            document.getElementById('patternCount').textContent = allPatterns.size;
-            document.getElementById('dependencyCount').textContent = allDependencies.size;
-            document.getElementById('redundancyScore').textContent = redundancyScore + '%';
-            
-            // Render repo cards
-            const repoListEl = document.getElementById('repoList');
-            repoListEl.innerHTML = repoList.map(([name, data]) => {
-                const patterns = data.patterns?.patterns || [];
-                const problem = data.patterns?.problem_domain || 'No description';
-                const keywords = data.patterns?.keywords || [];
-                
-                // Find similar repos
-                const similarities = findSimilarRepos(name, repos);
-                
-                return `
-                    <div class="repo-card">
-                        <div class="repo-header">
-                            <div class="repo-name">${name}</div>
-                            <div style="color: #999; font-size: 0.9em;">
-                                ${patterns.length} patterns
-                            </div>
-                        </div>
-                        <div class="problem-domain">${problem}</div>
-                        <div class="pattern-tags">
-                            ${patterns.slice(0, 5).map(p => `<span class="tag">${p}</span>`).join('')}
-                            ${patterns.length > 5 ? `<span class="tag">+${patterns.length - 5} more</span>` : ''}
-                        </div>
-                        ${similarities.length > 0 ? `
-                            <div class="similarity-section">
-                                <strong>Similar to:</strong>
-                                ${similarities.map(sim => `
-                                    <div class="similarity-item">
-                                        📊 <strong>${sim.repo}</strong> - 
-                                        ${sim.overlap} shared patterns
-                                    </div>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }).join('');
-            
-            // Draw network
-            drawNetwork(repos);
-        }
-
-        function findSimilarRepos(repoName, allRepos) {
-            const currentPatterns = new Set(allRepos[repoName]?.patterns?.patterns || []);
-            const similarities = [];
-            
-            Object.entries(allRepos).forEach(([name, data]) => {
-                if (name === repoName) return;
-                
-                const otherPatterns = new Set(data.patterns?.patterns || []);
-                const overlap = [...currentPatterns].filter(p => otherPatterns.has(p));
-                
-                if (overlap.length > 0) {
-                    similarities.push({
-                        repo: name,
-                        overlap: overlap.length,
-                        patterns: overlap
-                    });
-                }
-            });
-            
-            return similarities.sort((a, b) => b.overlap - a.overlap).slice(0, 3);
-        }
-
-        function drawNetwork(repos) {
-            const canvas = document.getElementById('network-canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas size
-            canvas.width = canvas.offsetWidth;
-            canvas.height = 500;
-            
-            const repoList = Object.keys(repos);
-            const nodes = repoList.map((name, i) => ({
-                name,
-                x: Math.random() * (canvas.width - 100) + 50,
-                y: Math.random() * (canvas.height - 100) + 50,
-                radius: 30
-            }));
-            
-            // Find connections
-            const connections = [];
-            for (let i = 0; i < repoList.length; i++) {
-                for (let j = i + 1; j < repoList.length; j++) {
-                    const patterns1 = new Set(repos[repoList[i]]?.patterns?.patterns || []);
-                    const patterns2 = new Set(repos[repoList[j]]?.patterns?.patterns || []);
-                    const overlap = [...patterns1].filter(p => patterns2.has(p)).length;
-                    
-                    if (overlap > 0) {
-                        connections.push({ from: i, to: j, weight: overlap });
-                    }
-                }
-            }
-            
-            // Simple force-directed layout (a few iterations)
-            for (let iter = 0; iter < 50; iter++) {
-                connections.forEach(conn => {
-                    const n1 = nodes[conn.from];
-                    const n2 = nodes[conn.to];
-                    const dx = n2.x - n1.x;
-                    const dy = n2.y - n1.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const force = (dist - 150) * 0.01;
-                    
-                    n1.x += (dx / dist) * force;
-                    n1.y += (dy / dist) * force;
-                    n2.x -= (dx / dist) * force;
-                    n2.y -= (dy / dist) * force;
-                });
-                
-                // Keep within bounds
-                nodes.forEach(n => {
-                    n.x = Math.max(50, Math.min(canvas.width - 50, n.x));
-                    n.y = Math.max(50, Math.min(canvas.height - 50, n.y));
-                });
-            }
-            
-            // Draw
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw connections
-            connections.forEach(conn => {
-                const n1 = nodes[conn.from];
-                const n2 = nodes[conn.to];
-                ctx.strokeStyle = `rgba(102, 126, 234, ${Math.min(conn.weight / 5, 1)})`;
-                ctx.lineWidth = Math.min(conn.weight, 5);
-                ctx.beginPath();
-                ctx.moveTo(n1.x, n1.y);
-                ctx.lineTo(n2.x, n2.y);
-                ctx.stroke();
-            });
-            
-            // Draw nodes
-            nodes.forEach(node => {
-                ctx.fillStyle = '#667eea';
-                ctx.beginPath();
-                ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.fillStyle = 'white';
-                ctx.font = '12px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const shortName = node.name.split('/')[1] || node.name;
-                ctx.fillText(shortName.substring(0, 10), node.x, node.y);
-            });
-        }
-    </script>
 </body>
 </html>

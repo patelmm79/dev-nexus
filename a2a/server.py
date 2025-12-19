@@ -109,6 +109,23 @@ try:
 except Exception as e:
     logger.warning(f"Failed to register architectural compliance skills: {e}")
 
+# Register component sensibility skills
+try:
+    from a2a.skills.component_sensibility import ComponentSensibilitySkills
+    from core.knowledge_base import KnowledgeBaseManager
+    from core.component_analyzer import VectorCacheManager
+
+    kb_manager = KnowledgeBaseManager()
+    postgres_url = os.environ.get("DATABASE_URL", "postgresql://localhost/devnexus")
+    vector_manager = VectorCacheManager(postgres_url)
+
+    component_sensibility_skills = ComponentSensibilitySkills(kb_manager, vector_manager)
+    for skill in component_sensibility_skills.get_skills():
+        registry.register(skill)
+    logger.info("Registered component sensibility skills")
+except Exception as e:
+    logger.warning(f"Failed to register component sensibility skills: {e}")
+
 # Initialize executor with registry
 executor = PatternDiscoveryExecutor(registry)
 

@@ -267,3 +267,140 @@ class IntegrationService:
             "agents": health_status,
             "all_healthy": all(health_status.values())
         }
+
+    # ==========================================
+    # Component Consolidation Integration
+    # ==========================================
+
+    def query_consolidation_impact(
+        self,
+        component_name: str,
+        from_repository: str,
+        to_repository: str
+    ) -> Dict[str, Any]:
+        """
+        Query consolidation impact from dependency-orchestrator
+
+        Args:
+            component_name: Name of component to consolidate
+            from_repository: Source repository
+            to_repository: Target repository
+
+        Returns:
+            Impact analysis with affected repositories, dependency chain, risk level
+        """
+        orchestrator = self.registry.get_agent('dependency-orchestrator')
+        if not orchestrator:
+            return {
+                "error": "dependency-orchestrator not configured",
+                "affected_repositories": [],
+                "risk_level": "unknown"
+            }
+
+        try:
+            result = orchestrator.execute_skill(
+                skill_id="get_consolidation_impact",
+                input_data={
+                    "component_name": component_name,
+                    "from_repository": from_repository,
+                    "to_repository": to_repository,
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
+            return result
+
+        except Exception as e:
+            return {
+                "error": f"Impact analysis failed: {str(e)}",
+                "affected_repositories": [],
+                "risk_level": "unknown"
+            }
+
+    def trigger_component_analysis(
+        self,
+        repository: str,
+        component_names: List[str],
+        focus_areas: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Trigger deep component analysis from pattern-miner
+
+        Args:
+            repository: Repository containing components
+            component_names: Names of components to analyze
+            focus_areas: Areas to focus on (e.g., "api_compatibility", "behavioral_differences")
+
+        Returns:
+            Deep analysis results including API compatibility, behavioral differences, feature gaps
+        """
+        miner = self.registry.get_agent('pattern-miner')
+        if not miner:
+            return {
+                "error": "pattern-miner not configured",
+                "api_compatibility": None,
+                "behavioral_differences": []
+            }
+
+        try:
+            result = miner.execute_skill(
+                skill_id="analyze_component_consolidation",
+                input_data={
+                    "repository": repository,
+                    "component_names": component_names,
+                    "focus_areas": focus_areas or ["api_compatibility", "behavioral_differences"],
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
+            return result
+
+        except Exception as e:
+            return {
+                "error": f"Deep analysis failed: {str(e)}",
+                "api_compatibility": None,
+                "behavioral_differences": []
+            }
+
+    def notify_consolidation_plan(
+        self,
+        component_name: str,
+        from_repository: str,
+        to_repository: str,
+        plan: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Notify dependency-orchestrator of consolidation plan
+
+        Args:
+            component_name: Name of component being consolidated
+            from_repository: Source repository
+            to_repository: Target repository
+            plan: Consolidation plan with phases and estimates
+
+        Returns:
+            Acknowledgment from orchestrator
+        """
+        orchestrator = self.registry.get_agent('dependency-orchestrator')
+        if not orchestrator:
+            return {
+                "error": "dependency-orchestrator not configured",
+                "acknowledged": False
+            }
+
+        try:
+            result = orchestrator.execute_skill(
+                skill_id="notify_consolidation_plan",
+                input_data={
+                    "component_name": component_name,
+                    "from_repository": from_repository,
+                    "to_repository": to_repository,
+                    "plan": plan,
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
+            return result
+
+        except Exception as e:
+            return {
+                "error": f"Notification failed: {str(e)}",
+                "acknowledged": False
+            }

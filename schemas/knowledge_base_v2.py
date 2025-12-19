@@ -92,6 +92,88 @@ class SecurityInfo(BaseModel):
     security_score: Optional[float] = None  # 0-100
 
 
+class Component(BaseModel):
+    """Detected component that can be analyzed for consolidation"""
+    component_id: str  # Unique identifier
+    name: str  # Component name
+    component_type: str  # api_client, infrastructure, business_logic, deployment_pattern
+    repository: str  # owner/repo where component lives
+    files: List[str]  # File paths containing component
+    language: str  # Python, Go, etc.
+
+    # Metadata for vectorization
+    api_signature: Optional[str] = None  # Public methods/exports
+    imports: List[str] = Field(default_factory=list)  # Dependencies
+    keywords: List[str] = Field(default_factory=list)  # Extracted keywords
+    description: Optional[str] = None
+
+    # Complexity metrics
+    lines_of_code: int = 0
+    cyclomatic_complexity: Optional[float] = None
+    public_methods: List[str] = Field(default_factory=list)
+
+    # Provenance tracking
+    first_seen: datetime
+    derived_from: Optional[str] = None  # Original component if copied
+    sync_status: str = "unknown"  # synchronized, diverged, original
+
+
+class ComponentLocation(BaseModel):
+    """Location where a component exists (used in provenance tracking)"""
+    repository: str  # owner/repo
+    files: List[str]  # File paths
+    sync_status: str  # synchronized, diverged, original, deprecated
+    similarity_to_canonical: Optional[float] = None  # How similar to canonical (0-1)
+    differences: List[str] = Field(default_factory=list)  # Notable differences
+    usage_count: int = 0  # How many repos import this location
+    consumers: List[str] = Field(default_factory=list)  # Repos that import it
+
+
+class ComponentProvenance(BaseModel):
+    """Tracks component origin, copies, and consolidation recommendations"""
+    component_id: str
+    component_name: str
+    component_type: str
+    origin_repository: str  # Where component originated
+    first_seen: datetime
+
+    locations: List[ComponentLocation] = Field(default_factory=list)  # All instances
+    canonical_repository: Optional[str] = None  # Recommended canonical location
+    canonical_score: Optional[float] = None  # Score explaining canonical choice (0-1)
+
+    consolidation_status: str = "unconsolidated"  # unconsolidated, planned, in_progress, completed
+    consolidation_plan: Optional[Dict] = None  # Detailed consolidation plan
+
+
+class ComponentVector(BaseModel):
+    """Stores TF-IDF vector for component in pgvector"""
+    vector_id: str  # Unique identifier in pgvector
+    component_id: str  # Reference to component
+    vector_dimension: int  # Vector size
+    last_updated: datetime
+    vector_metadata: Dict[str, str] = Field(default_factory=dict)  # Additional metadata
+
+
+class ConsolidationRecommendation(BaseModel):
+    """Recommendation to consolidate or move a component"""
+    recommendation_id: str
+    timestamp: datetime
+    component_id: str
+    from_repository: str
+    to_repository: str
+
+    priority: str  # CRITICAL, HIGH, MEDIUM, LOW
+    confidence: float  # 0-1, how confident is this recommendation
+    reasoning: str  # Why this recommendation
+
+    benefits: List[str] = Field(default_factory=list)  # Expected benefits
+    risks: List[str] = Field(default_factory=list)  # Potential risks
+    estimated_effort_hours: str  # e.g., "4-6"
+
+    status: str = "pending"  # pending, approved, rejected, completed
+    related_recommendations: List[str] = Field(default_factory=list)  # Other recommendations affected
+
+
 class PatternEntry(BaseModel):
     """Core pattern information from code analysis"""
     patterns: List[str] = Field(default_factory=list)
@@ -114,6 +196,10 @@ class RepositoryMetadata(BaseModel):
     testing: TestingInfo = Field(default_factory=TestingInfo)
     security: SecurityInfo = Field(default_factory=SecurityInfo)
     history: List[PatternEntry] = Field(default_factory=list)
+
+    # Component sensibility tracking
+    components: List[Component] = Field(default_factory=list)  # Detected components in this repo
+
     repository_url: Optional[str] = None
     primary_language: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -124,6 +210,11 @@ class KnowledgeBaseV2(BaseModel):
     """Complete knowledge base schema v2"""
     schema_version: str = "2.0"
     repositories: Dict[str, RepositoryMetadata] = Field(default_factory=dict)
+
+    # Component sensibility tracking
+    component_index: Dict[str, ComponentProvenance] = Field(default_factory=dict)  # Global component registry
+    consolidation_history: List[ConsolidationRecommendation] = Field(default_factory=list)  # Audit trail
+
     created_at: datetime
     last_updated: datetime
     metadata: Dict[str, str] = Field(default_factory=dict)

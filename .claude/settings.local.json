@@ -63,7 +63,10 @@
       "Bash(bash:*)",
       "Bash(export GCP_PROJECT_ID=globalbiting-dev)",
       "Bash(terraform validate:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(env)",
+      "Bash(gcloud secrets list:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

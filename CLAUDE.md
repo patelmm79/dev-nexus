@@ -93,10 +93,11 @@ The system now operates in two modes:
    - `integration.py` - External agent coordination and deep analysis triggering
    - `documentation_standards.py` - Documentation standards compliance checking
    - `runtime_monitoring.py` - Runtime issue tracking and pattern health analysis
-   - `architectural_compliance.py` - **NEW** Comprehensive architectural standards validation
+   - `architectural_compliance.py` - Comprehensive architectural standards validation
+   - `component_sensibility.py` - **NEW** Component placement and consolidation analysis
    - Adding new skill = create one file (not edit multiple files)
 
-4a. **Architectural Compliance Skills** (`a2a/skills/architectural_compliance.py`) **NEW**
+4a. **Architectural Compliance Skills** (`a2a/skills/architectural_compliance.py`)
    - **Purpose**: Validate repositories against comprehensive architectural standards
    - **Validation Scope**: 10 standard categories covering license, documentation, terraform, deployment, database, CI/CD, and containerization
    - **Pure GitHub API**: Uses GitHub API for repository scanning (no git clone needed)
@@ -143,6 +144,112 @@ The system now operates in two modes:
      * Methods: notify_compliance_violation(), trigger_deep_analysis(), record_compliance_snapshot(), process_compliance_report(), get_integration_status()
      * Uses ExternalAgentRegistry for agent discovery
      * Enables multi-agent collaboration for architectural improvement
+
+4b. **Component Sensibility Skills** (`a2a/skills/component_sensibility.py`) **NEW**
+   - **Purpose**: Detect misplaced components and recommend consolidation to canonical locations
+   - **Problem Solved**: Identifies components duplicated across repositories that could be shared
+   - **Example Use Case**: agentic-log-attacker has a GitHub integration that could be centralized in dev-nexus
+   - **Vectorization Approach**: Uses PostgreSQL pgvector with TF-IDF vectors for semantic similarity
+     * Efficient cosine similarity queries across all components
+     * Hybrid caching: Pre-computed vectors + on-demand generation via pattern-miner
+     * Multi-dimensional vectors: Code + tests + API signatures + imports
+   - **Three Skills**:
+     1. `detect_misplaced_components` - Find components that should be centralized
+        - Inputs: repository (optional), component_types, min_similarity_score (0-1), include_diverged flag
+        - Outputs: Misplaced components with similarity scores and canonical location recommendations
+        - Use case: Discover consolidation opportunities across all repositories
+     2. `analyze_component_centrality` - Score canonical locations using multi-factor heuristics
+        - Inputs: component_name, current_location, candidate_locations (optional)
+        - Outputs: Factor-by-factor breakdown explaining canonical scores
+        - Scoring factors (weighted):
+          * Repository purpose (30%) - Infrastructure vs. application repo
+          * Usage count (30%) - How many repos import this component
+          * Dependency centrality (20%) - Graph position (dev-nexus is central hub)
+          * Maintenance activity (10%) - Commit frequency, recency, contributors
+          * Component complexity (5%) - LOC, API surface, dependencies
+          * First implementation (5%) - Tie-breaker only
+        - Use case: Understand why dev-nexus scores higher for a component
+     3. `recommend_consolidation_plan` - Generate phased consolidation roadmap
+        - Inputs: component_name, from_repository, to_repository (optional), include_impact_analysis flag
+        - Outputs: 4-phase consolidation plan with effort estimates and impact analysis
+        - Integration with external agents:
+          * **dependency-orchestrator**: Provides impact analysis on affected repositories
+          * **pattern-miner**: Performs deep code comparison (API compatibility, behavioral differences)
+        - Four phases:
+          * Phase 1: Analyze & Prepare (2-3 hrs) - Compare implementations, identify gaps
+          * Phase 2: Merge & Standardize (3-4 hrs) - Merge code, standardize API
+          * Phase 3: Update Consumers (2-3 hrs) - Update dependent repositories
+          * Phase 4: Monitor & Verify (1-2 hrs) - Ensure success, document lessons
+        - Use case: Get actionable consolidation roadmap with risk assessment
+   - **Component Analysis Engine** (`core/component_analyzer.py`):
+     * **ComponentScanner**: AST-based extraction for 4 component types
+       - API Clients: Files matching `*_client.py`, `*_api.py`
+       - Infrastructure: Files in `utils/`, `core/`, `lib/` directories
+       - Business Logic: Domain models with validate/transform/process methods
+       - Deployment Patterns: Terraform, Docker, Cloud Build configs
+     * **VectorCacheManager**: PostgreSQL pgvector integration
+       - Methods: `get_or_create_vector()`, `find_similar()`, `update_vectors()`, `cache_status()`
+       - Graceful fallback when pattern-miner unavailable
+       - Rate limiting and batch vector generation
+     * **CentralityCalculator**: Smart heuristic scoring for canonical locations
+       - Analyzes 6 factors with configurable weights
+       - Generates transparent scoring explanations
+   - **Knowledge Base Schema Extensions**:
+     * New models: Component, ComponentLocation, ComponentProvenance, ComponentVector, ConsolidationRecommendation
+     * Extended RepositoryMetadata: Added `components` list
+     * Extended KnowledgeBaseV2: Added `component_index` and `consolidation_history`
+   - **Migration Script** (`migrations/003_add_component_provenance.py`):
+     * Idempotent migration: Scan all repos, extract components, generate vectors
+     * Identifies original implementations vs. diverged copies
+     * Tracks component provenance for consolidation analysis
+   - **A2A Integration**:
+     * Coordinates with dependency-orchestrator for impact analysis
+     * Triggers pattern-miner for deep code comparison
+     * Provides graceful fallback when external agents unavailable
+     * Comprehensive error handling and logging
+
+4c. **Frontend Integration** (`dev-nexus-frontend` React Application) **NEW**
+   - **Purpose**: Modern React frontend for pattern and component analysis
+   - **Location**: https://github.com/patelmm79/dev-nexus-frontend
+   - **Features**:
+     * `/patterns` - Pattern discovery and similarity visualization
+     * `/components` - Component consolidation analysis (NEW)
+     * Real-time A2A protocol integration
+     * Interactive D3.js/Cytoscape.js dependency graphs
+     * Mobile-responsive design
+   - **Component Sensibility UI** (`/components` page):
+     * **ComponentDetection**: Repository selector with similarity threshold controls
+       - Shows misplaced components with 0.7-0.9 similarity scores
+       - Displays canonical location recommendations
+       - Lists affected repositories for each component
+     * **ScoringBreakdown**: Interactive 6-factor canonical location visualization
+       - Visual weight indicators for each factor
+       - Side-by-side repository scoring comparison
+       - Factor-by-factor reasoning explanations
+     * **ConsolidationPlan**: 4-phase consolidation roadmap viewer
+       - Phase cards with actionable task lists
+       - Effort estimates per phase (total 8-12 hrs)
+       - Impact analysis results from dependency-orchestrator
+       - Success criteria and monitoring tasks
+     * **ComponentDependencyGraph**: Network visualization of component dependencies
+       - Force-directed graph layout
+       - Color-coded by repository purpose (infrastructure=blue, application=green)
+       - Edge widths proportional to usage count
+       - Interactive zoom, pan, node selection
+   - **API Integration**:
+     * Direct A2A protocol calls via FastAPI endpoints
+     * TypeScript types for all skill inputs/outputs
+     * React hooks for data fetching and state management
+     * Graceful error handling and loading states
+   - **Setup**: Clone dev-nexus-frontend, install dependencies, start dev server
+     * Frontend runs on port 3000
+     * Connects to A2A server on port 8080
+     * Environment variable: `REACT_APP_API_URL`
+   - **Dashboard Deprecation**:
+     * Old `pattern_dashboard.html` replaced with deprecation notice
+     * Users redirected to modern React frontend
+     * Migration support documentation provided
+   - **See [FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md) for complete setup and development guide**
 
 5. **Core Modules** (`core/`)
    - `pattern_extractor.py` - Pattern extraction with Claude
