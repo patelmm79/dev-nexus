@@ -115,7 +115,9 @@ try:
     from core.knowledge_base import KnowledgeBaseManager
     from core.component_analyzer import VectorCacheManager
 
-    kb_manager = KnowledgeBaseManager()
+    # Initialize KnowledgeBaseManager with GitHub client and KB repo
+    github_client = Github(config.github_token)
+    kb_manager = KnowledgeBaseManager(github_client, config.knowledge_base_repo)
     postgres_url = os.environ.get("DATABASE_URL", "postgresql://localhost/devnexus")
     vector_manager = VectorCacheManager(postgres_url)
 
