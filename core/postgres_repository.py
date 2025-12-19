@@ -332,6 +332,61 @@ class PostgresRepository:
             logger.error(f"[ADD_REPO] Failed to add repository '{name}': {e}", exc_info=True)
             raise
 
+    async def add_or_update_components(
+        self,
+        repository_name: str,
+        components: List[Any]  # List of Component objects
+    ) -> bool:
+        """
+        Add or update components for a repository in the database
+
+        Args:
+            repository_name: Repository name (format: "owner/repo")
+            components: List of Component objects to persist
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not components:
+                logger.info(f"No components to save for {repository_name}")
+                return True
+
+            # Ensure repository exists
+            repo_id = await self._ensure_repository(repository_name)
+
+            # Delete existing components for this repository
+            await self.db.execute(
+                "DELETE FROM reusable_components WHERE repo_id = $1",
+                repo_id
+            )
+
+            # Insert new components
+            query = """
+                INSERT INTO reusable_components (
+                    repo_id, name, description, files, language, created_at, updated_at
+                )
+                VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+            """
+
+            for component in components:
+                files_str = ",".join(component.files) if hasattr(component, 'files') else ""
+                await self.db.execute(
+                    query,
+                    repo_id,
+                    component.name if hasattr(component, 'name') else str(component),
+                    component.description if hasattr(component, 'description') else "",
+                    files_str,
+                    component.language if hasattr(component, 'language') else "python"
+                )
+
+            logger.info(f"Saved {len(components)} components for {repository_name}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to save components for {repository_name}: {e}", exc_info=True)
+            return False
+
     # Helper methods
 
     async def _ensure_repository(self, repository_name: str) -> int:
