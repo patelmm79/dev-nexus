@@ -59,21 +59,24 @@ The system now operates in two modes:
    - **Dynamic AgentCard**: Generated from skill registry (not hardcoded)
    - **Thin Coordinator**: 250 lines (reduced from 445 lines)
    - Publishes AgentCard at `/.well-known/agent.json`
-   - 14 skills for comprehensive agent coordination:
+   - 17 skills for comprehensive agent coordination:
      - `query_patterns` (public) - Search for similar patterns
      - `get_deployment_info` (public) - Get deployment/infrastructure info
      - `add_lesson_learned` (authenticated) - Record lessons learned
      - `get_repository_list` (public) - List all tracked repositories
      - `get_cross_repo_patterns` (public) - Find patterns across multiple repos
      - `update_dependency_info` (authenticated) - Update dependency graphs
-     - `add_deployment_info` (authenticated) - **NEW** Add/initialize deployment metadata
+     - `add_deployment_info` (authenticated) - Add/initialize deployment metadata
      - `health_check_external` (public) - Check external agent health
      - `check_documentation_standards` (public) - Check repository docs for standards conformity
      - `validate_documentation_update` (public) - Validate docs updated after code changes
-     - `add_runtime_issue` (authenticated) - **NEW** Record runtime issues from production monitoring
-     - `get_pattern_health` (public) - **NEW** Analyze runtime health of patterns
-     - `query_known_issues` (public) - **NEW** Search for previously encountered runtime issues
-     - `trigger_deep_analysis` (authenticated) - **NEW** Trigger pattern-miner for deep code analysis
+     - `add_runtime_issue` (authenticated) - Record runtime issues from production monitoring
+     - `get_pattern_health` (public) - Analyze runtime health of patterns
+     - `query_known_issues` (public) - Search for previously encountered runtime issues
+     - `trigger_deep_analysis` (authenticated) - Trigger pattern-miner for deep code analysis
+     - `validate_repository_architecture` (public) - **NEW** Full architectural compliance validation
+     - `check_specific_standard` (public) - **NEW** Single standard category validation
+     - `suggest_improvements` (public) - **NEW** Prioritized improvement recommendations
    - Flexible authentication (Workload Identity + Service Account)
    - Cloud Run deployment ready
    - Coordinates with dependency-orchestrator, pattern-miner, and monitoring systems
@@ -89,26 +92,61 @@ The system now operates in two modes:
    - `a2a/skills/knowledge_management.py` - KB update skills (authenticated)
    - `integration.py` - External agent coordination and deep analysis triggering
    - `documentation_standards.py` - Documentation standards compliance checking
-   - `runtime_monitoring.py` - **NEW** Runtime issue tracking and pattern health analysis
+   - `runtime_monitoring.py` - Runtime issue tracking and pattern health analysis
+   - `architectural_compliance.py` - **NEW** Comprehensive architectural standards validation
    - Adding new skill = create one file (not edit multiple files)
+
+4a. **Architectural Compliance Skills** (`a2a/skills/architectural_compliance.py`) **NEW**
+   - **Purpose**: Validate repositories against comprehensive architectural standards
+   - **Validation Scope**: 10 standard categories covering license, documentation, terraform, deployment, database, CI/CD, and containerization
+   - **Pure GitHub API**: Uses GitHub API for repository scanning (no git clone needed)
+   - **Three Skills**:
+     1. `validate_repository_architecture` - Full validation with compliance score
+        - Inputs: repository, optional validation_scope, optional recommendations flag
+        - Outputs: compliance score (0-1), grade (A-F), violations by category, recommendations
+        - Use case: Comprehensive architectural audit
+     2. `check_specific_standard` - Single standard category validation
+        - Inputs: repository, standard_category (enum of 10 options)
+        - Outputs: pass/fail, violations, compliance score for category
+        - Use case: Focused compliance checks on specific domains
+     3. `suggest_improvements` - Prioritized improvement recommendations
+        - Inputs: repository, optional max_recommendations count
+        - Outputs: recommendations organized by priority (CRITICAL > HIGH > MEDIUM > LOW)
+        - Use case: Roadmap planning for architectural improvements
+   - **Validation Standards**:
+     - License: GPL v3.0 compliance (LICENSE file, size >= 30KB, badge in README)
+     - Documentation: README.md and CLAUDE.md present with required sections
+     - Terraform Init: Unified initialization pattern with terraform-init-unified.sh
+     - Multi-Env: Separate tfvars for dev, staging, prod environments
+     - Terraform State: Remote GCS backend with backup procedures
+     - Disaster Recovery: DR documentation and backup scripts
+     - Deployment: Deployment docs and secrets management setup
+     - PostgreSQL: PostgreSQL 15 setup docs and terraform configuration
+     - CI/CD: Cloud Build multi-stage configuration
+     - Containerization: Docker multi-stage build exposing port 8080
+   - **Scoring**: Weighted by violation severity (critical -10, high -5, medium -2, low -1)
+   - **Integration**: All 3 skills callable via A2A protocol, can be coordinated with other agents
 
 5. **Core Modules** (`core/`)
    - `pattern_extractor.py` - Pattern extraction with Claude
    - `knowledge_base.py` - KB CRUD with v2 schema and auto-migration
    - `core/similarity_finder.py` - Enhanced similarity detection
    - `integration_service.py` - Bidirectional A2A coordination with external agents
-   - `core/documentation_standards_checker.py` - **NEW** Documentation standards compliance checker
-   - `core/database.py` - **NEW** PostgreSQL connection with exponential backoff retry logic
+   - `core/documentation_standards_checker.py` - Documentation standards compliance checker
+   - `core/database.py` - PostgreSQL connection with exponential backoff retry logic
+   - `core/standards_loader.py` - **NEW** Load and parse 10 architectural standards documents
+   - `core/architectural_validator.py` - **NEW** GitHub API-based repository validation engine
+   - `core/category_validators.py` - **NEW** 10 category-specific validators for standards compliance
    - Shared by both GitHub Actions CLI and A2A server
 
-5. **Enhanced Knowledge Base v2** (`schemas/`) **NEW**
+6. **Enhanced Knowledge Base v2** (`schemas/`) **NEW**
    - Pydantic models for data validation
    - New sections: deployment, dependencies, testing, security
    - Automatic migration from v1 to v2
    - `knowledge_base_v2.py` - Complete schema definitions
    - `migration.py` - v1→v2 migration logic
 
-6. **Pre-commit Checker** (`scripts/precommit_checker.py`)
+7. **Pre-commit Checker** (`scripts/precommit_checker.py`)
    - Optional local validation before commits
    - Fetches knowledge base from remote URL
    - Warns developers about pattern divergence interactively
