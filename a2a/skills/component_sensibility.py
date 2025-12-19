@@ -668,6 +668,140 @@ class RecommendConsolidationPlanSkill(BaseSkill):
         }
 
 
+class ScanRepositoryComponentsSkill(BaseSkill):
+    """
+    Scan a specific repository for components and update the component index
+
+    Triggers component detection, vectorization, and centrality analysis
+    for a single repository on-demand. Useful for triggering component analysis
+    from the frontend Repositories tab.
+    """
+
+    def __init__(self, kb_manager: KnowledgeBaseManager, vector_manager: VectorCacheManager):
+        """Initialize skill with dependencies"""
+        self.kb_manager = kb_manager
+        self.vector_manager = vector_manager
+        self.scanner = ComponentScanner()
+
+    @property
+    def skill_id(self) -> str:
+        return "scan_repository_components"
+
+    @property
+    def skill_name(self) -> str:
+        return "Scan Repository Components"
+
+    @property
+    def skill_description(self) -> str:
+        return "Scan a repository for components and update the component index. Extracts API clients, infrastructure utilities, business logic, and deployment patterns."
+
+    @property
+    def tags(self) -> List[str]:
+        return ["architecture", "component-sensibility", "scanning", "repository-analysis"]
+
+    @property
+    def requires_authentication(self) -> bool:
+        return False
+
+    @property
+    def input_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "repository": {
+                    "type": "string",
+                    "description": "Repository to scan (format: 'owner/repo')"
+                }
+            },
+            "required": ["repository"]
+        }
+
+    @property
+    def examples(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "input": {"repository": "patelmm79/dev-nexus"},
+                "description": "Scan dev-nexus for all component types"
+            },
+            {
+                "input": {"repository": "patelmm79/agentic-log-attacker"},
+                "description": "Scan agentic-log-attacker repository"
+            }
+        ]
+
+    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute component scanning for repository"""
+        try:
+            repository = input_data.get("repository", "").strip()
+
+            if not repository:
+                return {
+                    "success": False,
+                    "error": "Repository name is required (format: 'owner/repo')"
+                }
+
+            # Load KB
+            kb = self.kb_manager.load_knowledge_base()
+            if not kb:
+                return {
+                    "success": False,
+                    "error": "Could not load knowledge base"
+                }
+
+            if repository not in kb.repositories:
+                return {
+                    "success": False,
+                    "error": f"Repository '{repository}' not found in knowledge base"
+                }
+
+            repo_data = kb.repositories[repository]
+            logger.info(f"Scanning components in {repository}")
+
+            # Scan components using ComponentScanner
+            components = self.scanner.extract_components(repository, repo_data)
+
+            logger.info(f"Found {len(components)} components in {repository}")
+
+            # Generate vectors for each component if vector manager available
+            vectors_generated = 0
+            for component in components:
+                try:
+                    vector = self.vector_manager.get_or_create_vector(component)
+                    if vector:
+                        vectors_generated += 1
+                    logger.debug(f"Processed vector for {component.name}")
+                except Exception as e:
+                    logger.warning(f"Could not vectorize {component.name}: {e}")
+
+            # Update KB with components
+            repo_data.components = components
+
+            return {
+                "success": True,
+                "repository": repository,
+                "components_found": len(components),
+                "vectors_generated": vectors_generated,
+                "components": [
+                    {
+                        "name": c.name,
+                        "type": c.component_type,
+                        "files": c.files,
+                        "loc": c.lines_of_code,
+                        "methods": len(c.public_methods),
+                        "description": c.description
+                    }
+                    for c in components
+                ]
+            }
+
+        except Exception as e:
+            logger.error(f"Error scanning repository: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+
 class ComponentSensibilitySkills(SkillGroup):
     """
     Skill group for component sensibility analysis and consolidation
@@ -719,5 +853,6 @@ class ComponentSensibilitySkills(SkillGroup):
         detect_skill = DetectMisplacedComponentsSkill(self.vector_manager, self.kb_manager)
         analyze_skill = AnalyzeComponentCentralitySkill(self.kb_manager)
         recommend_skill = RecommendConsolidationPlanSkill(self.kb_manager, self.integration_service)
+        scan_skill = ScanRepositoryComponentsSkill(self.kb_manager, self.vector_manager)
 
-        return [detect_skill, analyze_skill, recommend_skill]
+        return [detect_skill, analyze_skill, recommend_skill, scan_skill]
