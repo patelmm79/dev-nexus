@@ -891,6 +891,14 @@ class ScanRepositoryComponentsSkill(BaseSkill):
             # Update KB with components
             repo_data.components = components
 
+            # Save KB back to PostgreSQL
+            logger.info(f"[SCAN] Saving updated knowledge base with {len(components)} components")
+            try:
+                await self.postgres_repo.save_knowledge_base(kb)
+                logger.info(f"[SCAN] Knowledge base saved successfully")
+            except Exception as e:
+                logger.warning(f"[SCAN] Could not save knowledge base: {type(e).__name__}: {e}")
+
             return {
                 "success": True,
                 "repository": repository,
