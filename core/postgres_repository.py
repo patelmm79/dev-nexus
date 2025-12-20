@@ -364,19 +364,20 @@ class PostgresRepository:
             # Insert new components
             query = """
                 INSERT INTO reusable_components (
-                    repo_id, name, description, files, language, created_at, updated_at
+                    repo_id, name, purpose, location, language, created_at, updated_at
                 )
                 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
             """
 
             for component in components:
-                files_str = ",".join(component.files) if hasattr(component, 'files') else ""
+                # Use first file as location, or component name if no files
+                location = component.files[0] if (hasattr(component, 'files') and component.files) else component.name if hasattr(component, 'name') else "unknown"
                 await self.db.execute(
                     query,
                     repo_id,
                     component.name if hasattr(component, 'name') else str(component),
                     component.description if hasattr(component, 'description') else "",
-                    files_str,
+                    location,
                     component.language if hasattr(component, 'language') else "python"
                 )
 
