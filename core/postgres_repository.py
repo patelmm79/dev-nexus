@@ -361,12 +361,12 @@ class PostgresRepository:
                 repo_id
             )
 
-            # Insert new components
+            # Insert new components (schema: name, purpose, location, repo_id, created_at, updated_at)
             query = """
                 INSERT INTO reusable_components (
-                    repo_id, name, purpose, location, language, created_at, updated_at
+                    repo_id, name, purpose, location, created_at, updated_at
                 )
-                VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+                VALUES ($1, $2, $3, $4, NOW(), NOW())
             """
 
             for component in components:
@@ -377,8 +377,7 @@ class PostgresRepository:
                     repo_id,
                     component.name if hasattr(component, 'name') else str(component),
                     component.description if hasattr(component, 'description') else "",
-                    location,
-                    component.language if hasattr(component, 'language') else "python"
+                    location
                 )
 
             logger.info(f"Saved {len(components)} components for {repository_name}")
