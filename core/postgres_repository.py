@@ -105,6 +105,111 @@ class PostgresRepository:
             last_updated=now
         )
 
+    async def save_knowledge_base(self, kb: KnowledgeBaseV2) -> bool:
+        """
+        Save complete knowledge base to PostgreSQL
+        Persists all repositories, patterns, decisions, components, etc.
+
+        Args:
+            kb: KnowledgeBaseV2 object to save
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            logger.info(f"[SAVE_KB] Starting knowledge base save with {len(kb.repositories)} repositories")
+
+            # Save each repository and its metadata
+            for repo_name, repo_metadata in kb.repositories.items():
+                try:
+                    # Ensure repository exists and get ID
+                    repo_id = await self._ensure_repository(repo_name)
+
+                    # Save latest patterns
+                    latest = repo_metadata.latest_patterns
+                    if latest:
+                        # Save patterns
+                        for pattern in latest.patterns:
+                            await self.db.execute(
+                                """
+                                INSERT INTO patterns (repo_id, name, created_at)
+                                VALUES ($1, $2, NOW())
+                                ON CONFLICT (repo_id, name) DO NOTHING
+                                """,
+                                repo_id,
+                                pattern
+                            )
+
+                        # Save technical decisions
+                        for decision in latest.decisions:
+                            await self.db.execute(
+                                """
+                                INSERT INTO technical_decisions (repo_id, what, created_at)
+                                VALUES ($1, $2, NOW())
+                                ON CONFLICT (repo_id, what) DO NOTHING
+                                """,
+                                repo_id,
+                                decision
+                            )
+
+                        # Save keywords
+                        for keyword in latest.keywords:
+                            # Get or create keyword
+                            kw_row = await self.db.fetchrow(
+                                "SELECT id FROM keywords WHERE keyword = $1",
+                                keyword
+                            )
+                            kw_id = kw_row['id'] if kw_row else None
+
+                            if not kw_id:
+                                kw_row = await self.db.fetchrow(
+                                    "INSERT INTO keywords (keyword) VALUES ($1) RETURNING id",
+                                    keyword
+                                )
+                                kw_id = kw_row['id']
+
+                        # Save commit SHA if available
+                        if latest.commit_sha and latest.commit_sha != "unknown":
+                            await self.db.execute(
+                                """
+                                UPDATE repositories
+                                SET last_commit_sha = $1, last_analyzed = NOW()
+                                WHERE id = $2
+                                """,
+                                latest.commit_sha,
+                                repo_id
+                            )
+
+                    # Save components (if any)
+                    if repo_metadata.components:
+                        await self.add_or_update_components(repo_name, repo_metadata.components)
+
+                    # Save lessons learned
+                    for lesson in repo_metadata.deployment.lessons_learned:
+                        await self.add_lesson_learned(repo_name, lesson)
+
+                    # Save dependency info
+                    if repo_metadata.dependencies:
+                        await self.update_dependency_info(repo_name, repo_metadata.dependencies)
+
+                    # Save deployment info
+                    if repo_metadata.deployment:
+                        await self.add_deployment_info(repo_name, repo_metadata.deployment)
+
+                    logger.info(f"[SAVE_KB] Saved repository: {repo_name}")
+
+                except Exception as e:
+                    logger.error(f"[SAVE_KB] Failed to save repository {repo_name}: {e}", exc_info=True)
+                    # Continue with next repository instead of failing entirely
+                    continue
+
+            logger.info("[SAVE_KB] Knowledge base saved successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"[SAVE_KB] Failed to save knowledge base: {e}", exc_info=True)
+            return False
+
     async def get_repository_info(self, repository_name: str) -> Optional[RepositoryMetadata]:
         """
         Get information for a specific repository
@@ -361,23 +466,61 @@ class PostgresRepository:
                 repo_id
             )
 
-            # Insert new components (schema: name, purpose, location, repo_id, created_at, updated_at)
+            # Insert new components with all available fields
             query = """
                 INSERT INTO reusable_components (
-                    repo_id, name, purpose, location, created_at, updated_at
+                    repo_id, name, purpose, location,
+                    component_id, component_type, language,
+                    api_signature, imports, keywords,
+                    lines_of_code, cyclomatic_complexity, public_methods,
+                    first_seen, derived_from, sync_status,
+                    created_at, updated_at
                 )
-                VALUES ($1, $2, $3, $4, NOW(), NOW())
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
             """
 
             for component in components:
                 # Use first file as location, or component name if no files
-                location = component.files[0] if (hasattr(component, 'files') and component.files) else component.name if hasattr(component, 'name') else "unknown"
+                location = (
+                    component.files[0]
+                    if (hasattr(component, 'files') and component.files)
+                    else getattr(component, 'name', 'unknown')
+                )
+
+                # Prepare all fields from Component object
+                component_id = getattr(component, 'component_id', f"{repository_name}/{getattr(component, 'name', 'unknown')}")
+                name = getattr(component, 'name', str(component))
+                description = getattr(component, 'description', '')
+                component_type = getattr(component, 'component_type', 'unknown')
+                language = getattr(component, 'language', 'unknown')
+                api_signature = getattr(component, 'api_signature', None)
+                imports = json.dumps(getattr(component, 'imports', []))
+                keywords = json.dumps(getattr(component, 'keywords', []))
+                lines_of_code = getattr(component, 'lines_of_code', 0)
+                cyclomatic_complexity = getattr(component, 'cyclomatic_complexity', None)
+                public_methods = json.dumps(getattr(component, 'public_methods', []))
+                first_seen = getattr(component, 'first_seen', datetime.now())
+                derived_from = getattr(component, 'derived_from', None)
+                sync_status = getattr(component, 'sync_status', 'unknown')
+
                 await self.db.execute(
                     query,
                     repo_id,
-                    component.name if hasattr(component, 'name') else str(component),
-                    component.description if hasattr(component, 'description') else "",
-                    location
+                    name,
+                    description,
+                    location,
+                    component_id,
+                    component_type,
+                    language,
+                    api_signature,
+                    imports,
+                    keywords,
+                    lines_of_code,
+                    cyclomatic_complexity,
+                    public_methods,
+                    first_seen,
+                    derived_from,
+                    sync_status
                 )
 
             logger.info(f"Saved {len(components)} components for {repository_name}")
@@ -448,9 +591,13 @@ class PostgresRepository:
             decision_rows = await self.db.fetch(decisions_query, repo_id)
             decisions = [row['what'] for row in decision_rows]
 
-            # Get reusable components (matching schema: name, description, files, language)
+            # Get reusable components with extended schema
             components_query = """
-                SELECT name, purpose as description, location, 'unknown' as language
+                SELECT
+                    name, purpose as description, location, language,
+                    component_id, component_type, api_signature, imports, keywords,
+                    lines_of_code, cyclomatic_complexity, public_methods,
+                    first_seen, derived_from, sync_status
                 FROM reusable_components
                 WHERE repo_id = $1
                 ORDER BY created_at DESC
@@ -462,7 +609,9 @@ class PostgresRepository:
                     name=row['name'],
                     description=row['description'] or "",
                     files=[row['location']] if row['location'] else [],
-                    language=row['language']
+                    language=row['language'] or 'unknown',
+                    api_contract=row['api_signature'],
+                    tags=json.loads(row['keywords']) if row['keywords'] else []
                 )
                 for row in component_rows
             ]
